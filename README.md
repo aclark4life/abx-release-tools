@@ -53,8 +53,9 @@ Verify it against the internal Garasign signing guide before first use.
 The drivers-github-tools release pipeline around `python/post-publish`
 (`full-report`, `upload-s3-assets`, `bump-version`, `tag-version`,
 `compliance-report`) is not extracted. ABX repos do not use the Evergreen +
-S3 release pipeline those actions assume. Add actions from upstream when an
-ABX repo needs one.
+S3 release pipeline those actions assume. ABX repos never use
+drivers-github-tools directly: when a repo needs one of those actions, extract
+it from drivers-github-tools into this repo first, then use it from here.
 
 ## Maintenance rules
 
