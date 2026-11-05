@@ -2,7 +2,8 @@
 #
 # Pattern from the Java driver Papertrail onboarding commit and the Evergreen
 # papertrail.trace command docs. Evergreen cannot include YAML from another
-# repo: copy this into the project config and adapt the TODO values.
+# repo: copy this into the project config. Pass the product name as a function
+# var at the call site.
 #
 # Hidden project variables needed (Evergreen project settings):
 #   papertrail_key_id      Papertrail Key ID
@@ -32,17 +33,21 @@ functions:
       params:
         key_id: ${papertrail_key_id}
         secret_key: ${papertrail_secret_key}
-        product: <TODO product name, for example strands-mongodb>
+        product: ${product}
         version: ${release_version}
         filenames:
           - "dist/*.whl"
           - "dist/*.tar.gz"
           - "dist/*.sig"
 
-# Add the function to the release task, after publishing.
+# Add the function to the release task, after publishing. Pass the product
+# name as a function var: the agreed product name on release builds, a dev
+# product name (for example <product>-dev) on non-release builds.
 #
 # tasks:
 #   - name: release
 #     commands:
 #       - func: publish
 #       - func: trace artifacts
+#         vars:
+#           product: strands-mongodb
