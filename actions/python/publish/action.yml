@@ -1,0 +1,29 @@
+# ABX-specific: thin wrapper, not extracted from upstream. Wraps the pypa
+# action for PyPI trusted publishing. Disables attestations: the Garasign
+# signature (gpg-sign) is the only signature on an ABX release.
+name: Python Publish
+description: Publish dists to PyPI with trusted publishing. No stored token.
+inputs:
+  dist_path:
+    description: Directory holding the dists to publish.
+    default: dist/
+  repository-url:
+    description: The PyPI repository URL to use.
+    default: https://upload.pypi.org/legacy/
+  skip-existing:
+    description: Skip uploading files that already exist on the index.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    # pypa/gh-action-pypi-publish@release/v1 (7245906fb61fa33a13554f9d5fb856fe61758086).
+    # Re-pin to the release/v1 head when updating.
+    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
+      with:
+        packages-dir: ${{ inputs.dist_path }}
+        repository-url: ${{ inputs.repository-url }}
+        skip-existing: ${{ inputs.skip-existing }}
+        # The action enables attestations by default. ABX disables them:
+        # the Garasign signature is the only signature on the release.
+        attestations: false

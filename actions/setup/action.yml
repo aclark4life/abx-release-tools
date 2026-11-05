@@ -1,0 +1,64 @@
+# Extracted unchanged from mongodb-labs/drivers-github-tools@99b1cbd
+# (upstream path: setup/action.yml). Keep inputs and semantics aligned with upstream.
+name: Setup
+description: "Set up the Release Environment"
+inputs:
+  aws_role_arn:
+    description: "The aws role to acquire"
+    required: true
+  aws_region_name:
+    description: "The aws region to use"
+    required: true
+  aws_secret_id:
+    description: "The name of the aws secret to use"
+    required: true
+  ecr_registry_id:
+    description: "The ECR registry id to use"
+    default: "901841024863"
+  ecr_role_arn:
+    description: "The ECR role arn to use"
+    default: "arn:aws:iam::901841024863:role/ecr-role-gha-ro"
+  ecr_region:
+    description: "The ECR region to use"
+    default: us-east-1
+
+runs:
+  using: composite
+  steps:
+  # Docker login must be done before input role login so we remain logged in for S3 upload.
+  - name: configure aws credentials for ECR
+    uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+    with:
+      role-to-assume: ${{ inputs.ecr_role_arn }}
+      role-session-name: release-session
+      aws-region: ${{ inputs.ecr_region }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  - name: Log in to ECR
+    uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
+    with:
+      registries: "${{ inputs.ecr_registry_id }}"
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  - name: configure aws credentials
+    uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+    with:
+      role-to-assume: ${{ inputs.aws_role_arn }}
+      role-session-name: release-session
+      aws-region: ${{ inputs.aws_region_name }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  - name: Read secrets from AWS Secrets Manager into environment variables
+    uses: aws-actions/aws-secretsmanager-get-secrets@2297f9a879480a9e3af9b293ed15c70caf8e1c88 # v3.0.2
+    with:
+      secret-ids: |
+        ${{ inputs.aws_secret_id }}
+      parse-json-secrets: true
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  - name: Set up
+    shell: bash
+    id: setup
+    run: ${{ github.action_path }}/setup.sh
+    env:
+      AWS_SECRET_ID: ${{ inputs.aws_secret_id }}

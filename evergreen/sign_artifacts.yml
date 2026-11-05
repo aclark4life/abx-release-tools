@@ -1,0 +1,57 @@
+# Garasign signing functions for Evergreen (TEMPLATE — verify before use).
+#
+# Evergreen cannot include YAML from another repo. Copy these functions into
+# the project config and adapt the TODO values.
+#
+# The mms source (evergreen/sign_artifacts.yml in the private 10gen/mms repo)
+# defines sign_artifact and download_and_sign_artifact_and_upload_signature.
+# This file reconstructs sign_artifact from the ABX release how-to guide and
+# the public drivers-github-tools gpg-sign container pattern. Verify the
+# container commands against the internal Garasign signing guide before the
+# first release. Copy download_and_sign_artifact_and_upload_signature from mms
+# when a build host has no container runtime.
+#
+# Hidden project variables needed (Evergreen project settings):
+#   EVG_grs_config_abx_username  Garasign username (ai-builder-experience)
+#   EVG_grs_config_abx_password  Garasign password
+
+functions:
+  write garasign environment file:
+    - command: shell.exec
+      params:
+        # silent: the script text contains the hidden variables. Evergreen
+        # prints script text in task logs.
+        silent: true
+        script: |
+          cat <<EOF > garasign.env
+          GRS_CONFIG_USER1_USERNAME=${EVG_grs_config_abx_username}
+          GRS_CONFIG_USER1_PASSWORD=${EVG_grs_config_abx_password}
+          EOF
+
+  sign artifact:
+    - command: shell.exec
+      params:
+        script: |
+          set -eu
+          docker run \
+            --env-file=garasign.env \
+            --rm \
+            -v $(pwd):$(pwd) \
+            -w $(pwd) \
+            901841024863.dkr.ecr.us-east-1.amazonaws.com/release-infrastructure/garasign-git \
+            /bin/bash -c 'gpgloader && gpg --detach-sign --armor --output ${detached_signature} ${unsigned_artifact}'
+
+# Task usage example. Function vars, never command-line variables: Evergreen
+# can print command lines in task logs.
+#
+# tasks:
+#   - name: sign_artifacts
+#     commands:
+#       - func: write garasign environment file
+#       - func: build  # produces dist/
+#       - func: sign artifact
+#         vars:
+#           unsigned_artifact: dist/abx-1.0.0-py3-none-any.whl
+#           detached_signature: dist/abx-1.0.0-py3-none-any.whl.sig
+#
+# If the host uses Podman, replace docker with podman.

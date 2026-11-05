@@ -1,0 +1,48 @@
+# Papertrail trace function for Evergreen (TEMPLATE — verify before use).
+#
+# Pattern from the Java driver Papertrail onboarding commit and the Evergreen
+# papertrail.trace command docs. Evergreen cannot include YAML from another
+# repo: copy this into the project config and adapt the TODO values.
+#
+# Hidden project variables needed (Evergreen project settings):
+#   papertrail_key_id      Papertrail Key ID
+#   papertrail_secret_key  Papertrail Secret Key
+#
+# Rules:
+# - One trace per customer-downloadable file (wheels, sdists, checksums,
+#   signature files).
+# - The command rejects two files with the same name in one call.
+# - Use a dev product name (for example <product>-dev) on non-release builds.
+# - Filenames must include the version and be unique across releases.
+
+functions:
+  trace artifacts:
+    - command: shell.exec
+      params:
+        script: |
+          set -eu
+          # cut -c 2- removes the leading v from the tag. Skip it if the
+          # project tags releases without a v prefix.
+          version=$(git describe --tags | cut -c 2-)
+          echo "release_version: \"$version\"" > trace-expansions.yml
+    - command: expansions.update
+      params:
+        file: trace-expansions.yml
+    - command: papertrail.trace
+      params:
+        key_id: ${papertrail_key_id}
+        secret_key: ${papertrail_secret_key}
+        product: <TODO product name, for example strands-mongodb>
+        version: ${release_version}
+        filenames:
+          - "dist/*.whl"
+          - "dist/*.tar.gz"
+          - "dist/*.sig"
+
+# Add the function to the release task, after publishing.
+#
+# tasks:
+#   - name: release
+#     commands:
+#       - func: publish
+#       - func: trace artifacts

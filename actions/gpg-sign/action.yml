@@ -1,0 +1,48 @@
+# Extracted unchanged from mongodb-labs/drivers-github-tools@99b1cbd
+# (upstream path: gpg-sign/action.yml). Keep inputs and semantics aligned with upstream.
+name: "Sign artifact(s) using garasign"
+description: "Signs release artifact(s)"
+inputs:
+  filenames:
+    description: "File name(s) to sign, can be a glob pattern"
+    required: true
+  ecr_registry:
+    description: "The ECR registry to use"
+    default: "901841024863.dkr.ecr.us-east-1.amazonaws.com"
+  ecr_repository:
+    description: "The ECR repository to use"
+    default: release-infrastructure/garasign-git
+
+runs:
+  using: composite
+  steps:
+    - name: Get the list of filenames as a space-separated string
+      shell: bash
+      id: filenames
+      run: |
+          set -eux
+          FILENAMES="${{inputs.filenames}}"
+          if [[ $FILENAMES =~ '*' ]]; then
+            FILENAMES=$(ls $FILENAMES | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/ /g')
+          fi
+          echo "names=\"$FILENAMES\"" >> $GITHUB_OUTPUT
+    - name: "Create detached signature for file"
+      shell: bash
+      env:
+        ECR_REGISTRY: ${{ inputs.ecr_registry }}
+        ECR_REPOSITORY: ${{ inputs.ecr_repository }}
+      run: |
+        docker run \
+          --env-file=$GARASIGN_ENVFILE \
+          --rm \
+          -v $(pwd):$(pwd) \
+          -w $(pwd) \
+          ${ECR_REGISTRY}/${ECR_REPOSITORY} \
+          /bin/bash -c 'gpgloader && for filename in ${{ inputs.filenames }}; do gpg --detach-sign --armor --output ${filename}.sig ${filename}; done'
+
+    - name: "Move the signature files to the release directory"
+      shell: bash
+      run: |
+        set -eux
+        export FILENAMES=${{steps.filenames.outputs.names}}
+        for filename in $FILENAMES; do mv ${filename}.sig $RELEASE_ASSETS; done
