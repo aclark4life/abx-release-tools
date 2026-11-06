@@ -32,6 +32,10 @@ uses: <owner>/abx-release-tools/actions/python/publish@main
 
 Pin to a commit SHA in real workflows.
 
+The `python/publish` action needs `permissions: id-token: write` on the
+publish job. PyPI trusted publishing exchanges the GitHub OIDC token for the
+upload; without the permission the publish step fails.
+
 The `sbom`, `gpg-sign`, `git-sign`, `authorized-pub`, and `upload-s3-assets`
 actions expect the environment set up by the `setup` action (`RELEASE_ASSETS`,
 `S3_ASSETS`, `GARASIGN_ENVFILE`, `KONDUKTO_ENVFILE`, `AWS_BUCKET`). Run
@@ -39,7 +43,20 @@ actions expect the environment set up by the `setup` action (`RELEASE_ASSETS`,
 
 Guide 3's GitHub Actions tracing alternative uses `authorized-pub` to write
 `authorized-publication.txt`, then `upload-s3-assets` to put it in the release
-S3 bucket. Agree the bucket with DevProd Release Infrastructure.
+S3 bucket. Run the two actions in that order: there is no `python/post-publish`
+release chain here (see Out of scope). Agree the bucket with DevProd Release
+Infrastructure.
+
+## Per-repo onboarding
+
+Four steps sit outside this repo, done once per repo. The ABX release how-to
+guides have the details:
+<https://docs.google.com/document/d/1rhYkWgbasperhG_9m5enMLamVkM0Nm5E7XuZ9lixxLI/edit>.
+
+1. File the Kondukto RNDSEC onboarding ticket.
+2. Request the Kondukto CI API token and store it as a CI secret.
+3. Agree the Papertrail product name with DevProd Release Infrastructure.
+4. Register the PyPI pending publisher for each new package.
 
 ## Provenance
 
@@ -49,10 +66,22 @@ at commit `99b1cbd729bc83bf7fc74e1b2a97fffad3d65d7b`. Each file carries a
 provenance comment. Do not change semantics silently: keep names and inputs
 aligned with upstream so fixes are easy to cherry-pick.
 
-The Evergreen templates are written from the ABX release how-to guides and the
-public drivers-github-tools container patterns. The mms `sign_artifacts.yml`
-source is private, so `evergreen/sign_artifacts.yml` is a reconstruction.
-Verify it against the internal Garasign signing guide before first use.
+Every extracted action runs in production in pymongo's release workflow
+([release-python.yml](https://github.com/mongodb/mongo-python-driver/blob/main/.github/workflows/release-python.yml)),
+which pins the same commit: `setup` and `gpg-sign` in the post-publish chain,
+`authorized-pub` and `sbom` through `full-report`, `upload-s3-assets` in
+post-publish, and `git-sign` through pre-publish's `tag-version`.
+
+The Evergreen templates follow public, working Evergreen release pipelines.
+Each file cites its source:
+
+- `evergreen/sign_artifacts.yml` — mongodb/mongo-rust-driver
+  (`.evergreen/releases.yml`, `.evergreen/release-sign.sh`).
+- `evergreen/silkbomb.yml` — mongodb/mongo-csharp-driver
+  (`evergreen/evergreen.yml`, `evergreen/upload-sbom.sh`) for `upload`; the
+  drivers-github-tools `sbom` action for `augment`.
+- `evergreen/papertrail.yml` — mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
+  and mongodb/mongo-rust-driver (`.evergreen/releases.yml`).
 
 ## Out of scope (deliberately)
 
@@ -73,11 +102,9 @@ it from drivers-github-tools into this repo first, then use it from here.
 
 ## TODO before this leaves POC
 
-- [ ] Verify `evergreen/sign_artifacts.yml` against the Garasign signing guide.
-- [ ] Verify `evergreen/silkbomb.yml` against the SilkBomb onboarding doc.
-- [ ] Confirm how `KONDUKTO_TOKEN` is supplied on Evergreen (hidden project
-      variable or Secrets Manager via the silkbomb role).
-- [ ] Move to an ABX-owned org repo. Composite actions in a private personal
-      repo cannot be used by org repositories; the repo must be public or
-      internal before ABX repos consume it.
-- [ ] Add a license (upstream has none).
+- [ ] Confirm how `KONDUKTO_TOKEN` is supplied on Evergreen for the augment
+      task. Upload needs no token (mongo-csharp-driver `upload-sbom.sh`).
+- [ ] Move the repo to mongodb-labs. Composite actions in a private personal
+      repo cannot be used by org repositories; mongodb-labs makes the repo
+      public and consumable. Update the README owner placeholders when the
+      move lands.
