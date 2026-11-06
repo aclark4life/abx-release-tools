@@ -1,55 +1,51 @@
-# Garasign signing functions for Evergreen (TEMPLATE — verify before use).
+# Garasign artifact signing function for Evergreen (TEMPLATE).
 #
-# Evergreen cannot include YAML from another repo. Copy these functions into
-# the project config and adapt the TODO values.
-#
-# The mms source (evergreen/sign_artifacts.yml in the private 10gen/mms repo)
-# defines sign_artifact and download_and_sign_artifact_and_upload_signature.
-# This file reconstructs sign_artifact from the ABX release how-to guide and
-# the public drivers-github-tools gpg-sign container pattern. Verify the
-# container commands against the internal Garasign signing guide before the
-# first release. Copy download_and_sign_artifact_and_upload_signature from mms
-# when a build host has no container runtime.
+# Pattern from mongodb/mongo-rust-driver (.evergreen/releases.yml "sign
+# release" and .evergreen/release-sign.sh), a public, working Evergreen
+# signing pipeline. Evergreen cannot include YAML from another repo: copy
+# this function into the project config.
 #
 # Hidden project variables needed (Evergreen project settings):
-#   EVG_grs_config_abx_username  Garasign username (ai-builder-experience)
-#   EVG_grs_config_abx_password  Garasign password
+#   GARASIGN_USERNAME  Garasign username (ai-builder-experience)
+#   GARASIGN_PASSWORD  Garasign password
+#
+# Credentials ride the environment, never the script text: Evergreen prints
+# script text in task logs. The shell variables below ($GARASIGN_USERNAME,
+# not ${GARASIGN_USERNAME}) stay unsubstituted in the log for the same reason.
 
 functions:
-  write garasign environment file:
+  sign_artifact:
+    - command: ec2.assume_role
+      params:
+        role_arn: arn:aws:iam::901841024863:role/ecr-role-evergreen-ro
     - command: shell.exec
       params:
-        # silent: the script text contains the hidden variables. Evergreen
-        # prints script text in task logs.
-        silent: true
-        script: |
-          cat <<EOF > garasign.env
-          GRS_CONFIG_USER1_USERNAME=${EVG_grs_config_abx_username}
-          GRS_CONFIG_USER1_PASSWORD=${EVG_grs_config_abx_password}
-          EOF
-
-  sign artifact:
-    - command: shell.exec
-      params:
+        env:
+          GARASIGN_USERNAME: ${GARASIGN_USERNAME}
+          GARASIGN_PASSWORD: ${GARASIGN_PASSWORD}
+          UNSIGNED_ARTIFACT: ${unsigned_artifact}
+          DETACHED_SIGNATURE: ${detached_signature}
         script: |
           set -eu
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 901841024863.dkr.ecr.us-east-1.amazonaws.com
+          echo "GRS_CONFIG_USER1_USERNAME=$GARASIGN_USERNAME" >> signing-envfile
+          echo "GRS_CONFIG_USER1_PASSWORD=$GARASIGN_PASSWORD" >> signing-envfile
           docker run \
-            --env-file=garasign.env \
+            --env-file=signing-envfile \
             --rm \
             -v $(pwd):$(pwd) \
             -w $(pwd) \
-            901841024863.dkr.ecr.us-east-1.amazonaws.com/release-infrastructure/garasign-git \
-            /bin/bash -c 'gpgloader && gpg --detach-sign --armor --output ${detached_signature} ${unsigned_artifact}'
+            901841024863.dkr.ecr.us-east-1.amazonaws.com/release-infrastructure/garasign-gpg \
+            /bin/bash -c "gpgloader && gpg --yes -v --armor -o $DETACHED_SIGNATURE --detach-sign $UNSIGNED_ARTIFACT"
 
-# Task usage example. Function vars, never command-line variables: Evergreen
-# can print command lines in task logs.
+# Task usage example. Function vars carry the file names; the hidden project
+# variables carry the credentials.
 #
 # tasks:
 #   - name: sign_artifacts
 #     commands:
-#       - func: write garasign environment file
 #       - func: build  # produces dist/
-#       - func: sign artifact
+#       - func: sign_artifact
 #         vars:
 #           unsigned_artifact: dist/abx-1.0.0-py3-none-any.whl
 #           detached_signature: dist/abx-1.0.0-py3-none-any.whl.sig
