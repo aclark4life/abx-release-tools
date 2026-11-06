@@ -7,10 +7,11 @@ integrations that join that list.
 
 POC. Covers the four steps of the ABX release how-to guides:
 
-1. Dependency scanning (SilkBomb / Kondukto).
-2. Artifact signing (Garasign).
-3. Artifact tracing (Papertrail).
-4. PyPI trusted publishing.
+1. Dependency scanning with SilkBomb.
+2. Artifact signing with Garasign.
+3. Artifact tracing with Papertrail or the authorized-publication
+   report.
+4. Trusted publishing to PyPI.
 
 ## Documentation
 
