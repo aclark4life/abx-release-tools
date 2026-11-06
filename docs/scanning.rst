@@ -1,6 +1,17 @@
 Dependency scanning
 ===================
 
+Two ways to run SilkBomb on GitHub Actions. Choose by what the repo
+needs:
+
+- Scan-only CI, no AWS release infrastructure: run the container
+  inline, with ``KONDUKTO_TOKEN`` from a GitHub Actions secret. Source:
+  `mongodb-mcp-server
+  <https://github.com/mongodb-js/mongodb-mcp-server/pull/1356>`_.
+- A repo that also releases: use :doc:`setup` and the ``sbom`` action.
+  The repo needs ``setup`` anyway for signing and S3 upload; the
+  Kondukto token then lives in the AWS secret.
+
 GitHub Actions: ``sbom``
 ------------------------
 

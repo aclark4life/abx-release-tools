@@ -44,7 +44,9 @@ Inputs
      - Skip files already on the index. Default ``false``.
 
 The action disables PyPI attestations. The Garasign signature from
-:doc:`signing` is the only signature on an ABX release.
+:doc:`signing` is the only signature on an ABX release. pymongo
+additionally attests build provenance in its release pipeline; ABX
+deliberately ships one signature.
 
 Pending publisher
 -----------------
