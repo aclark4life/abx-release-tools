@@ -78,8 +78,9 @@ Each file cites its source:
 - `evergreen/sign_artifacts.yml` — mongodb/mongo-rust-driver
   (`.evergreen/releases.yml`, `.evergreen/release-sign.sh`).
 - `evergreen/silkbomb.yml` — mongodb/mongo-csharp-driver
-  (`evergreen/evergreen.yml`, `evergreen/upload-sbom.sh`) for `upload`; the
-  drivers-github-tools `sbom` action for `augment`.
+  (`evergreen/evergreen.yml`, `evergreen/upload-sbom.sh`). `upload` only; the
+  augmented SBOM that ships with a release comes from the GitHub Actions
+  `sbom` action.
 - `evergreen/papertrail.yml` — mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
   and mongodb/mongo-rust-driver (`.evergreen/releases.yml`).
 
@@ -102,8 +103,6 @@ it from drivers-github-tools into this repo first, then use it from here.
 
 ## TODO before this leaves POC
 
-- [ ] Confirm how `KONDUKTO_TOKEN` is supplied on Evergreen for the augment
-      task. Upload needs no token (mongo-csharp-driver `upload-sbom.sh`).
 - [ ] Move the repo to mongodb-labs. Composite actions in a private personal
       repo cannot be used by org repositories; mongodb-labs makes the repo
       public and consumable. Update the README owner placeholders when the

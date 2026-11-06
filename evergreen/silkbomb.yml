@@ -1,24 +1,23 @@
-# SilkBomb SBOM functions and tasks for Evergreen (TEMPLATE).
+# SilkBomb SBOM function and task for Evergreen (TEMPLATE).
 #
-# Patterns from public Evergreen release pipelines:
-# - mongodb/mongo-csharp-driver: evergreen/evergreen.yml "upload-sbom" and
-#   evergreen/upload-sbom.sh — ECR login, then the silkbomb IAM role, then
-#   `upload` with AWS session credentials only. Per that script, `upload`
-#   needs no Kondukto token; `augment` does.
-# - mongodb-labs/drivers-github-tools sbom action (run in production by
-#   pymongo's release): the `augment` invocation with KONDUKTO_TOKEN.
+# Pattern from mongodb/mongo-csharp-driver: evergreen/evergreen.yml
+# "upload-sbom" and evergreen/upload-sbom.sh — a public, working Evergreen
+# pipeline. Evergreen cannot include YAML from another repo: copy these into
+# the project config and adapt the TODO values.
 #
-# Evergreen cannot include YAML from another repo: copy these into the
-# project config and adapt the TODO values.
+# upload only: it needs no Kondukto token, just the silkbomb IAM role's AWS
+# session credentials (mongo-csharp-driver upload-sbom.sh). The augmented
+# SBOM that ships with a release is produced on GitHub Actions by the sbom
+# action, which reads KONDUKTO_TOKEN from the AWS secret the setup action
+# fetches — the same path pymongo's release runs.
 #
 # Project variables needed (Evergreen project settings):
 #   silkbomb_role_arn: arn:aws:iam::119629040606:role/silkbomb
 #   devprod_platforms_ecr_readonly_role_arn: arn:aws:iam::901841024863:role/ecr-role-evergreen-ro
 #   branch_name: the branch being scanned
-#   KONDUKTO_TOKEN: hidden project variable (augment only)
 #
-# Session credentials and the Kondukto token ride the environment, never the
-# script text: Evergreen prints script text in task logs.
+# Session credentials ride the environment, never the script text: Evergreen
+# prints script text in task logs.
 
 functions:
   generate_sbom:
@@ -69,39 +68,12 @@ functions:
             901841024863.dkr.ecr.us-east-1.amazonaws.com/release-infrastructure/silkbomb:2.0 \
             upload --repo <TODO org>/<TODO repo> --branch "${branch_name}" --sbom-in /pwd/sbom.json
 
-  augment_sbom:
-    - command: ec2.assume_role
-      params:
-        role_arn: ${silkbomb_role_arn}
-    - command: shell.exec
-      params:
-        env:
-          AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-          AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-          AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
-          KONDUKTO_TOKEN: ${KONDUKTO_TOKEN}
-        script: |
-          set -eu
-          docker run --rm -v "$(pwd):/pwd" \
-            --user "$(id -u):$(id -g)" \
-            --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env AWS_SESSION_TOKEN \
-            --env KONDUKTO_TOKEN \
-            901841024863.dkr.ecr.us-east-1.amazonaws.com/release-infrastructure/silkbomb:2.0 \
-            augment --sbom-in /pwd/sbom.json --sbom-out /pwd/cyclonedx.sbom.json \
-            --repo <TODO org>/<TODO repo> --branch "${branch_name}"
-
 tasks:
   - name: UPLOAD_SBOM_TO_KONDUKTO
     commands:
       - func: generate_sbom
       - func: login_to_ecr
       - func: upload_sbom
-
-  - name: AUGMENT_SBOM
-    commands:
-      - func: generate_sbom
-      - func: login_to_ecr
-      - func: augment_sbom
 
 buildvariants:
   - name: ssdlc
@@ -110,4 +82,3 @@ buildvariants:
       - rhel9-latest-small
     tasks:
       - name: UPLOAD_SBOM_TO_KONDUKTO
-      - name: AUGMENT_SBOM
