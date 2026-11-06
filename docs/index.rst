@@ -9,10 +9,10 @@ Shared release tooling for ABX (AI Builder Experience) integrations:
 The tooling covers the four secure-release steps every ABX release
 needs:
 
-1. Dependency scanning (SilkBomb / Kondukto).
-2. Artifact signing (Garasign).
-3. Artifact tracing (Papertrail).
-4. PyPI trusted publishing.
+1. Dependency scanning with SilkBomb.
+2. Artifact signing with Garasign.
+3. Artifact tracing with Papertrail.
+4. Trusted publishing to PyPI.
 
 .. toctree::
    :maxdepth: 2
