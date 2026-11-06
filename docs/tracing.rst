@@ -1,6 +1,17 @@
 Artifact tracing
 ================
 
+Two paths. Choose by where the release runs:
+
+- Evergreen: the built-in ``papertrail.trace`` command, one trace per
+  customer-downloadable file.
+- GitHub Actions: the authorized-publication report, uploaded to the
+  release S3 bucket.
+
+Both run in production: ``papertrail.trace`` in the mongo-java-driver
+and mongo-rust-driver release pipelines; the report in pymongo's
+release workflow.
+
 Evergreen: ``evergreen/papertrail.yml``
 ---------------------------------------
 
@@ -44,10 +55,9 @@ and `mongo-rust-driver
 GitHub Actions: ``authorized-pub`` and ``upload-s3-assets``
 -----------------------------------------------------------
 
-When the release runs on GitHub Actions, use the
-authorized-publication report instead of ``papertrail.trace``. Run the
-two actions in that order; there is no release chain that runs them
-for you. Run ``setup`` first.
+When the release runs on GitHub Actions, trace with the
+authorized-publication report. Run the two actions in that order;
+there is no release chain that runs them for you. Run ``setup`` first.
 
 .. code-block:: yaml
 
@@ -105,6 +115,7 @@ for you. Run ``setup`` first.
      - Print the files instead of uploading. Default ``false``.
 
 The report lists Product, Version, Releaser, Build Source, Build
-Number, and one Filename and Shasum pair per dist file. Agree the S3
-bucket with DevProd Release Infrastructure, and agree that the S3
-report meets the LRA requirement before you depend on it.
+Number, and one Filename and Shasum pair per dist file. This is the
+same report pymongo's release uploads to its release S3 bucket.
+Request the release S3 bucket from DevProd Release Infrastructure
+during onboarding.
