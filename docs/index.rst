@@ -7,22 +7,16 @@ Shared release tooling for ABX (AI Builder Experience) integrations:
 ``mongodb-developer/claude-agent-sdk-mongodb-session-store``.
 
 The tooling covers the four secure-release steps every ABX release
-needs:
-
-1. Dependency scanning with SilkBomb.
-2. Artifact signing with Garasign.
-3. Artifact tracing with Papertrail or the authorized-publication
-   report.
-4. Trusted publishing to PyPI.
+needs, plus the setup action that precedes them:
 
 .. toctree::
    :maxdepth: 2
 
-   setup
-   scanning
-   signing
-   tracing
-   publishing
+   Setup <setup>
+   Dependency scanning with SilkBomb <scanning>
+   Artifact signing with Garasign <signing>
+   Artifact tracing: Papertrail or the authorized-publication report <tracing>
+   Trusted publishing to PyPI <publishing>
 
 Verification
 ------------

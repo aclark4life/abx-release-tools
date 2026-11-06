@@ -5,13 +5,14 @@ Shared release tooling for ABX (AI Builder Experience) integrations:
 `mongodb-developer/claude-agent-sdk-mongodb-session-store`, and new
 integrations that join that list.
 
-POC. Covers the four steps of the ABX release how-to guides:
+POC. Covers the four steps of the ABX release how-to guides; the
+[documentation](docs/index.rst) has the details:
 
-1. Dependency scanning with SilkBomb.
-2. Artifact signing with Garasign.
-3. Artifact tracing with Papertrail or the authorized-publication
-   report.
-4. Trusted publishing to PyPI.
+- [Dependency scanning with SilkBomb](docs/scanning.rst)
+- [Artifact signing with Garasign](docs/signing.rst)
+- [Artifact tracing: Papertrail or the authorized-publication
+  report](docs/tracing.rst)
+- [Trusted publishing to PyPI](docs/publishing.rst)
 
 ## Documentation
 
