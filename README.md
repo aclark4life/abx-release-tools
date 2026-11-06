@@ -12,6 +12,15 @@ POC. Covers the four steps of the ABX release how-to guides:
 3. Artifact tracing (Papertrail).
 4. PyPI trusted publishing.
 
+## Documentation
+
+Sphinx docs with the Furo theme, under `docs/`:
+
+```
+python -m pip install -r docs/requirements.txt
+sphinx-build -b html docs docs/_build/html
+```
+
 ## Layout
 
 - `actions/` — GitHub Actions composite actions, consumed with `uses:`.
