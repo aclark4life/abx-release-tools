@@ -11,7 +11,8 @@ needs:
 
 1. Dependency scanning with SilkBomb.
 2. Artifact signing with Garasign.
-3. Artifact tracing with Papertrail.
+3. Artifact tracing with Papertrail or the authorized-publication
+   report.
 4. Trusted publishing to PyPI.
 
 .. toctree::
