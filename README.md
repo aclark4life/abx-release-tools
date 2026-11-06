@@ -21,6 +21,9 @@ python -m pip install -r docs/requirements.txt
 sphinx-build -b html docs docs/_build/html
 ```
 
+Read the Docs builds the docs from `.readthedocs.yaml`. Update that
+file when the repo moves or renames.
+
 ## Layout
 
 - `actions/` — GitHub Actions composite actions, consumed with `uses:`.
