@@ -26,14 +26,20 @@ uses: <owner>/abx-release-tools/actions/sbom@main
 uses: <owner>/abx-release-tools/actions/gpg-sign@main
 uses: <owner>/abx-release-tools/actions/git-sign@main
 uses: <owner>/abx-release-tools/actions/authorized-pub@main
+uses: <owner>/abx-release-tools/actions/upload-s3-assets@main
 uses: <owner>/abx-release-tools/actions/python/publish@main
 ```
 
 Pin to a commit SHA in real workflows.
 
-The `sbom`, `gpg-sign`, `git-sign`, and `authorized-pub` actions expect the
-environment set up by the `setup` action (`RELEASE_ASSETS`, `S3_ASSETS`,
-`GARASIGN_ENVFILE`, `KONDUKTO_ENVFILE`). Run `setup` first.
+The `sbom`, `gpg-sign`, `git-sign`, `authorized-pub`, and `upload-s3-assets`
+actions expect the environment set up by the `setup` action (`RELEASE_ASSETS`,
+`S3_ASSETS`, `GARASIGN_ENVFILE`, `KONDUKTO_ENVFILE`, `AWS_BUCKET`). Run
+`setup` first.
+
+Guide 3's GitHub Actions tracing alternative uses `authorized-pub` to write
+`authorized-publication.txt`, then `upload-s3-assets` to put it in the release
+S3 bucket. Agree the bucket with DevProd Release Infrastructure.
 
 ## Provenance
 
@@ -51,8 +57,8 @@ Verify it against the internal Garasign signing guide before first use.
 ## Out of scope (deliberately)
 
 The drivers-github-tools release pipeline around `python/post-publish`
-(`full-report`, `upload-s3-assets`, `bump-version`, `tag-version`,
-`compliance-report`) is not extracted. ABX repos do not use the Evergreen +
+(`full-report`, `bump-version`, `tag-version`, `compliance-report`) is not
+extracted. ABX repos do not use the Evergreen +
 S3 release pipeline those actions assume. ABX repos never use
 drivers-github-tools directly: when a repo needs one of those actions, extract
 it from drivers-github-tools into this repo first, then use it from here.
