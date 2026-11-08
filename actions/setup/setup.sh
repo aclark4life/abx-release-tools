@@ -9,7 +9,9 @@
 #     contain a newline. docker --env-file is line-oriented: a newline in a password silently
 #     truncates it and the run fails as a Garasign auth error, which is a misleading place to look.
 #   - mkdir -p, so a rerun of a job does not fail on a directory that already exists.
-#   - umask 077 around the env files, so they are not world-readable on a shared runner.
+#   - umask 077 around the env files, so they are not world-readable on a shared runner, and
+#     they are written under RUNNER_TEMP, which the runner scopes to the job and cleans up.
+#     /tmp remains the fallback, so behaviour off a runner is unchanged.
 set -euo pipefail
 
 # Fail on a credential that cannot survive an env file, before writing one.
@@ -31,7 +33,8 @@ reject_newline GARASIGN_PASSWORD
 umask 077
 
 echo "Set up envfile for garasign"
-GARASIGN_ENVFILE=/tmp/garasign-envfile
+TEMP_DIR=${RUNNER_TEMP:-/tmp}
+GARASIGN_ENVFILE=$TEMP_DIR/garasign-envfile
 cat << EOF > "$GARASIGN_ENVFILE"
 GRS_CONFIG_USER1_USERNAME=$GARASIGN_USERNAME
 GRS_CONFIG_USER1_PASSWORD=$GARASIGN_PASSWORD
@@ -41,17 +44,17 @@ KONDUKTO_ENVFILE=${KONDUKTO_ENVFILE:-}
 if [ -n "${KONDUKTO_TOKEN:-}" ]; then
   echo "Setting up envfile for Kondukto"
   reject_newline KONDUKTO_TOKEN
-  KONDUKTO_ENVFILE=/tmp/kondukto-envfile
+  KONDUKTO_ENVFILE=$TEMP_DIR/kondukto-envfile
   cat << EOF > "$KONDUKTO_ENVFILE"
 KONDUKTO_TOKEN=${KONDUKTO_TOKEN}
 EOF
 fi
 
 echo "Set up output directories"
-RELEASE_ASSETS=/tmp/release-assets
+RELEASE_ASSETS=$TEMP_DIR/release-assets
 mkdir -p "$RELEASE_ASSETS"
 echo "$GITHUB_RUN_ID" > "$RELEASE_ASSETS/release_run_id.txt"
-S3_ASSETS=/tmp/s3-assets
+S3_ASSETS=$TEMP_DIR/s3-assets
 mkdir -p "$S3_ASSETS"
 
 echo "Set up global variables"
