@@ -1,5 +1,14 @@
-# Extracted unchanged from mongodb-labs/drivers-github-tools@99b1cbd
-# (upstream path: authorized-pub/action.yml). Keep inputs and semantics aligned with upstream.
+# Extracted from mongodb-labs/drivers-github-tools@99b1cbd (upstream path: authorized-pub/action.yml),
+# then hardened. The inputs and the report's format are unchanged.
+#
+# Divergence from upstream, deliberate:
+#   - Inputs reach the script through `env:` rather than being interpolated into `run:`. Upstream
+#     interpolates the product name, the version, the token and the file list directly, so any of
+#     them can close a quote and become shell.
+#   - The file list is expanded with the same rules as gpg-sign, and a pattern that matches nothing
+#     is an error rather than a line missing from the report.
+#   - The report is written with a trailing newline per record and the file list is sorted, so two
+#     runs over the same artifacts produce the same bytes.
 name: Authorized Publication
 description: Generate report for authorized publication on distribution channels
 inputs:
@@ -10,7 +19,7 @@ inputs:
     description: The release version
     required: true
   filenames:
-    description: Artifact filename(s) to include in the report, can be a glob pattern
+    description: Artifact filename(s) to include in the report; space- or newline-separated, each may be a glob
     default: ""
   token:
     description: The GitHub token for the action
@@ -20,26 +29,79 @@ runs:
   steps:
     - name: Prepare report
       shell: bash
+      env:
+        PRODUCT_NAME: ${{ inputs.product_name }}
+        RELEASE_VERSION: ${{ inputs.release_version }}
+        FILENAMES: ${{ inputs.filenames }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        ACTOR: ${{ github.actor }}
+        RUN_ID: ${{ github.run_id }}
       run: |
-          if [ -n "${{ inputs.token }}" ]; then
-            export GH_TOKEN=${{ inputs.token }}
+        set -euo pipefail
+
+        : "${S3_ASSETS:?not set; run the setup action first}"
+
+        if [ -n "$INPUT_TOKEN" ]; then
+          export GH_TOKEN="$INPUT_TOKEN"
+        fi
+
+        # The display name is a courtesy; the login is the identity that matters, so a lookup
+        # failure must not take the report down with it.
+        if ! NAME=$(gh api "users/$ACTOR" --jq '.name' 2>/dev/null) || [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
+          NAME="$ACTOR"
+        fi
+
+        REPORT="$S3_ASSETS/authorized-publication.txt"
+        cat > "$REPORT" <<EOF
+        Product: $PRODUCT_NAME
+        Version: $RELEASE_VERSION
+        Releaser: $NAME
+        Build Source: GitHub Actions
+        Build Number: $RUN_ID
+        EOF
+
+        # A newline in the input means one pattern per line, and a pattern may then contain a
+        # space. Without a newline the input is a space-separated list, which cannot express one.
+        patterns=()
+        if [[ "$FILENAMES" == *$'\n'* ]]; then
+          while IFS= read -r line; do
+            [ -n "$line" ] && patterns+=("$line")
+          done <<< "$FILENAMES"
+        else
+          # shellcheck disable=SC2206  # deliberate: a space-separated list is the legacy form
+          patterns=($FILENAMES)
+        fi
+
+        files=()
+        for pattern in "${patterns[@]}"; do
+          # IFS empty so the pattern is not word-split before it is globbed: a pattern containing a
+          # space must stay one word. Pathname expansion still yields one field per match. An
+          # unmatched glob stays literal, and the existence test below rejects it.
+          saved_ifs=$IFS
+          IFS=''
+          # shellcheck disable=SC2206  # deliberate: this is the glob expansion
+          matches=($pattern)
+          IFS=$saved_ifs
+          matched=0
+          for path in "${matches[@]}"; do
+            if [ -f "$path" ]; then
+              files+=("$path")
+              matched=1
+            fi
+          done
+          if [ "$matched" -eq 0 ]; then
+            echo "::error::no file matches '$pattern'"
+            exit 1
           fi
-          NAME=$(gh api users/${{ github.actor }} --jq '.name')
-          export REPORT=$S3_ASSETS/authorized-publication.txt
-          export FILENAMES=${{ inputs.filenames }}
-          cat << EOF > $REPORT
-          Product: ${{ inputs.product_name }}
-          Version: ${{ inputs.release_version }}
-          Releaser: $NAME
-          Build Source: GitHub Actions
-          Build Number: ${{ github.run_id }}
-          EOF
-          if [ -z "$FILENAMES" ]; then
-              echo "No published artifacts." >> $REPORT
-          else
-            for filename in ${{ inputs.filenames }}; do
-                SHA=$(shasum -a 256 $filename | awk '{print $1;}')
-                echo "Filename: $filename"  >> $REPORT
-                echo "Shasum: $SHA"  >> $REPORT
-            done
-          fi
+        done
+
+        if [ "${#files[@]}" -eq 0 ]; then
+          echo "No published artifacts." >> "$REPORT"
+        else
+          while IFS= read -r path; do
+            SHA=$(shasum -a 256 "$path" | awk '{print $1}')
+            printf 'Filename: %s\nShasum: %s\n' "$path" "$SHA" >> "$REPORT"
+          done < <(printf '%s\n' "${files[@]}" | sort)
+        fi
+
+        cat "$REPORT"
