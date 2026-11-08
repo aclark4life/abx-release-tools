@@ -68,8 +68,20 @@ runs:
           matched=0
           for path in "${matches[@]}"; do
             if [ -e "$path" ]; then
-              files+=("$path")
               matched=1
+              # Two patterns can match the same file. Keeping it once means it is signed,
+              # reported or uploaded once; the second pass over it would act on a file the
+              # first pass has already moved. Linear scan: the list is a release's worth.
+              already=0
+              for seen in ${files[@]+"${files[@]}"}; do
+                if [ "$seen" = "$path" ]; then
+                  already=1
+                  break
+                fi
+              done
+              if [ "$already" -eq 0 ]; then
+                files+=("$path")
+              fi
             fi
           done
           if [ "$matched" -eq 0 ]; then
