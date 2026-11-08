@@ -9,6 +9,7 @@ sort of thing that passes review and then does not.
 from __future__ import annotations
 
 import re
+import subprocess
 
 import pytest
 
@@ -18,6 +19,7 @@ from conftest import (
     action_name,
     declared_inputs,
     run_steps,
+    shellcheck_path,
 )
 import yaml
 
@@ -96,3 +98,35 @@ def test_every_script_declares_bash(action) -> None:
         assert step.get("shell") == "bash", (
             f"{name} step {index} has a run: but no `shell: bash`"
         )
+
+
+def test_every_script_passes_shellcheck(action, tmp_path) -> None:
+    """shellcheck at its default severity, which includes SC2086.
+
+    pre-commit runs shellcheck over ``.sh`` files, of which this repository has one. Every other
+    line of shell it ships lives in a ``run:`` body, where that hook never looks -- which is where
+    every defect fixed on this branch was found. It also runs at ``--severity=warning``, and
+    SC2086 is a note, so an unquoted expansion was invisible twice over. ``sbom`` passed both
+    checks while interpolating a caller's ``sbom_in_path`` unquoted onto a command line.
+
+    Expressions are replaced with a placeholder rather than left in place: ``${{ }}`` is not shell,
+    and the test above is what guards it.
+    """
+    name, doc = action
+
+    findings = []
+    for index, step in enumerate(run_steps(doc)):
+        body = step.get("run")
+        if body is None:
+            continue
+        script = tmp_path / f"{index}.sh"
+        script.write_text("#!/usr/bin/env bash\n" + EXPRESSION.sub("PLACEHOLDER", str(body)))
+        result = subprocess.run(
+            [shellcheck_path(), "--format=gcc", str(script)],
+            capture_output=True,
+            text=True,
+        )
+        for line in result.stdout.splitlines():
+            findings.append(f"{name} step {index}: {line.split(':', 1)[1]}")
+
+    assert findings == [], "\n".join(findings)

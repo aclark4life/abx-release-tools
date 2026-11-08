@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -117,3 +119,16 @@ def run_step(
         capture_output=True,
         text=True,
     )
+
+
+def shellcheck_path() -> str:
+    """The shellcheck binary.
+
+    `shellcheck-py` in tests/requirements.txt installs it next to the running interpreter, so it
+    is found there first and only then on PATH. It is a hard requirement rather than a skip: a
+    check that quietly skips itself on a machine without shellcheck is not a check.
+    """
+    here = str(Path(sys.executable).parent)
+    found = shutil.which("shellcheck", path=os.pathsep.join([here, os.environ.get("PATH", "")]))
+    assert found, "shellcheck not found; pip install -r tests/requirements.txt"
+    return found
