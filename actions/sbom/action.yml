@@ -1,5 +1,13 @@
-# Extracted unchanged from mongodb-labs/drivers-github-tools@99b1cbd
-# (upstream path: sbom/action.yml). Keep inputs and semantics aligned with upstream.
+# Extracted from mongodb-labs/drivers-github-tools@99b1cbd (upstream path: sbom/action.yml),
+# then hardened. The inputs and the output locations are unchanged.
+#
+# Divergence from upstream, deliberate:
+#   - The environment the setup action is meant to have provided is checked before the first
+#     docker run, so a missing KONDUKTO_ENVFILE fails saying so rather than as a docker error
+#     about an unreadable --env-file.
+#   - The augmented SBOM is checked to be non-empty before it is copied. silkbomb writing
+#     nothing and exiting 0 would otherwise ship an empty SBOM as if it were a real one.
+#   - Paths are quoted and `set -euo pipefail` replaces `set -eu`.
 name: Augment the SBOM
 description: Augments the SBOM for the project
 inputs:
@@ -31,7 +39,12 @@ runs:
         ECR_REPOSITORY: ${{ inputs.ecr_repository }}
         SBOM_FILE_NAME: ${{ inputs.sbom_file_name }}
       run: |
-        set -eu
+        set -euo pipefail
+
+        : "${RELEASE_ASSETS:?not set; run the setup action first}"
+        : "${S3_ASSETS:?not set; run the setup action first}"
+        : "${KONDUKTO_ENVFILE:?not set; the secret must carry a kondukto-token for the SBOM step}"
+
         if [ -n "${KONDUKTO_SUB_PROJECT}" ]; then
           KONDUKTO_BRANCH="${GITHUB_REF_NAME}_${KONDUKTO_SUB_PROJECT}"
         else
@@ -39,14 +52,18 @@ runs:
         fi
         echo "Generating SBOM file for ${KONDUKTO_BRANCH}..."
         echo "Updating SBOM file..."
-        docker run --platform="linux/amd64" -i --rm -v ${RELEASE_ASSETS}:/pwd -v $(pwd):/repo \
-          --env-file=${KONDUKTO_ENVFILE} \
+        docker run --platform="linux/amd64" -i --rm -v "${RELEASE_ASSETS}:/pwd" -v "$(pwd):/repo" \
+          --env-file="${KONDUKTO_ENVFILE}" \
           ${ECR_REGISTRY}/${ECR_REPOSITORY} \
           update --sbom-in /repo/${SBOM_IN_PATH} --sbom-out /pwd/cyclonedx.sbom.json --generate-new-serial-number
         echo "Augumenting SBOM file..."
-        docker run --platform="linux/amd64" -i --rm -v ${RELEASE_ASSETS}:/pwd -v $(pwd):/repo \
-          --env-file=${KONDUKTO_ENVFILE} \
+        docker run --platform="linux/amd64" -i --rm -v "${RELEASE_ASSETS}:/pwd" -v "$(pwd):/repo" \
+          --env-file="${KONDUKTO_ENVFILE}" \
           ${ECR_REGISTRY}/${ECR_REPOSITORY} \
           augment --sbom-in /pwd/cyclonedx.sbom.json --repo ${GITHUB_REPOSITORY} --branch ${KONDUKTO_BRANCH} --sbom-out /pwd/cyclonedx.sbom.json
-        cp ${RELEASE_ASSETS}/cyclonedx.sbom.json ${S3_ASSETS}/${SBOM_FILE_NAME}
+        if [ ! -s "${RELEASE_ASSETS}/cyclonedx.sbom.json" ]; then
+          echo "::error::silkbomb produced no SBOM"
+          exit 1
+        fi
+        cp "${RELEASE_ASSETS}/cyclonedx.sbom.json" "${S3_ASSETS}/${SBOM_FILE_NAME}"
         echo "Generating SBOM file for ${KONDUKTO_BRANCH}... done."
