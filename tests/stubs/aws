@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stand-in for the AWS CLI. Records each invocation, one per line, so a test can assert what
+# would have been uploaded and where.
+set -euo pipefail
+printf '%s\n' "$*" >> "${STUB_AWS_LOG:-/dev/null}"

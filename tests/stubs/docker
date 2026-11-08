@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Stand-in for docker. Reads the NUL-delimited file list the signing step sends on stdin and
+# writes a .sig beside each entry, recording the key id it was given so a test can check the
+# --local-user pin reached the container's environment rather than being lost on the way.
+#
+# It does not run the command it was asked to run. Whether gpg honours --local-user is a question
+# about gpg, and only a real Garasign container can answer it.
+set -euo pipefail
+printf '%s\n' "$@" > "${STUB_DOCKER_ARGV:-/dev/null}"
+if [ -n "${STUB_DOCKER_FAIL:-}" ]; then
+  echo "stub docker: failing on request" >&2
+  exit "$STUB_DOCKER_FAIL"
+fi
+while IFS= read -r -d '' file; do
+  printf 'SIGNED(%s) key=%s\n' "$file" "${GPG_KEY_ID:-UNSET}" > "$file.sig"
+done

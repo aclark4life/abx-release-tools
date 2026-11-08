@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Stand-in for the GitHub CLI. authorized-pub uses it only to turn a login into a display name.
+set -euo pipefail
+if [ -n "${STUB_GH_FAIL:-}" ]; then
+  echo "stub gh: not authenticated" >&2
+  exit 1
+fi
+printf '%s\n' "${STUB_GH_NAME:-Test Person}"
