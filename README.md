@@ -184,6 +184,31 @@ space-separated list cannot express one, which is the defect that started this.
 caller relying on a glob that sometimes matches nothing must stop passing it,
 rather than expect the step to shrug.
 
+## Tests
+
+`pytest` (`pip install -r tests/requirements.txt`). `.github/workflows/test.yml`
+runs it, and `pre-commit --hook-stage manual`, on every push and pull request.
+
+Nearly all of the logic here lives in the `run:` bodies of composite actions,
+which neither existing check opened: the pre-commit shellcheck hook matches
+`.sh` files, of which this repository has one. So the suite parses each
+`action.yml` and tests those bodies directly.
+
+The static tests assert that no `${{ }}` survives into a `run:` body, that
+every expression names a declared input, that every script sets
+`-euo pipefail` and declares `shell: bash`, and that each body passes
+shellcheck at its default severity. The behavioural tests run the extracted
+bodies against a fixture directory with `docker`, `gh` and `aws` stubbed on
+`PATH`.
+
+The fixture artifact is named `my package.tar.gz`. Every file-list defect
+listed above turned on a name containing a space, including two introduced
+while fixing the first one.
+
+The suite pulls no container and makes no AWS call, so `gpgloader`,
+`--local-user`, the silkbomb invocations and the secret load are not exercised
+by it. A real release is still the first test of those.
+
 ## Out of scope (deliberately)
 
 The drivers-github-tools release pipeline around `python/post-publish`
@@ -199,7 +224,7 @@ it from drivers-github-tools into this repo first, then use it from here.
   adapts when DevProd changes SilkBomb, Garasign, or Papertrail interfaces.
 - Generic fixes go upstream to drivers-github-tools too, so drift stays
   visible instead of silent.
-- Run `pre-commit run --all-files` before committing.
+- Run `pre-commit run --all-files` before committing, and `pytest`.
 
 ## TODO before this leaves POC
 
