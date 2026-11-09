@@ -7,6 +7,11 @@ GitHub Actions: ``gpg-sign``
 Signs release artifacts with the Garasign GPG container and moves the
 detached ``.sig`` files to ``RELEASE_ASSETS``. Run ``setup`` first.
 
+The ``filenames`` input contract, shared by every action that takes a
+file list: entries may be **space- or newline-separated**, and each may
+be a glob. A pattern that matches nothing fails the step; a file
+matched by two patterns is handled once.
+
 Usage
 -----
 

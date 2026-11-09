@@ -33,7 +33,9 @@ Inputs
      - AWS region of the secret.
    * - ``aws_secret_id``
      - yes
-     - AWS Secrets Manager secret holding the release credentials.
+     - Name or ARN of the AWS Secrets Manager secret holding the
+       release credentials. A comma is rejected: the secrets-manager
+       action reads it as an alias separator.
    * - ``ecr_registry_id``
      - no
      - ECR registry id. Default ``901841024863``.
@@ -61,6 +63,12 @@ The action logs in to ECR, reads the AWS secret, and exports:
   the secret).
 - ``GPG_KEY_ID``, ``GPG_PUBLIC_URL``, ``SECURITY_REPORT_URL`` — passed
   through from the secret when present.
+
+The credential values are checked before the env files are written: a
+missing ``GARASIGN_USERNAME``, ``GARASIGN_PASSWORD``, or ``GPG_KEY_ID``
+fails the step, as does a newline in any of them (docker env files are
+line-oriented). The files are written under ``RUNNER_TEMP`` with
+``umask 077``.
 
 It also sets the git identity to ``mongodb-dbx-release-bot[bot]`` for
 release commits and tags.

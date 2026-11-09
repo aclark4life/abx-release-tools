@@ -84,11 +84,15 @@ both recorded under "Input contract" below. Nothing changed silently: the rule
 stays that semantics track upstream so fixes cherry-pick, and where this repo
 leaves upstream it says so in the file and here.
 
-Every extracted action runs in production in pymongo's release workflow
+Upstream, these same actions run in production in pymongo's release
+workflow
 ([release-python.yml](https://github.com/mongodb/mongo-python-driver/blob/main/.github/workflows/release-python.yml)),
-which pins the same commit: `setup` and `gpg-sign` in the post-publish chain,
-`authorized-pub` and `sbom` through `full-report`, `upload-s3-assets` in
-post-publish, and `git-sign` through pre-publish's `tag-version`.
+which pins the same commit the actions were extracted from: `setup` and
+`gpg-sign` in the post-publish chain, `authorized-pub` and `sbom` through
+`full-report`, `upload-s3-assets` in post-publish, and `git-sign` through
+pre-publish's `tag-version`. The hardening above means the bytes this repo
+ships are ahead of upstream; the upstream fixes are tracked in
+[PYTHON-6234](https://jira.mongodb.org/browse/PYTHON-6234).
 
 The Evergreen templates follow public, working Evergreen release pipelines.
 Each file cites its source:

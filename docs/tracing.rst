@@ -58,6 +58,8 @@ GitHub Actions: ``authorized-pub`` and ``upload-s3-assets``
 When the release runs on GitHub Actions, trace with the
 authorized-publication report. Run the two actions in that order;
 there is no release chain that runs them for you. Run ``setup`` first.
+Both take a ``filenames`` input under the contract in :doc:`signing`:
+space- or newline-separated, each a glob, unmatched patterns error.
 
 .. code-block:: yaml
 
