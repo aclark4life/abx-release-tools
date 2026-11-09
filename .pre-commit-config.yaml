@@ -6,8 +6,21 @@ repos:
   - id: check-added-large-files
   - id: check-case-conflict
   - id: check-yaml
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
   - id: trailing-whitespace
     exclude: dist/index.js
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.17.4
+  hooks:
+  - id: ruff-check
+  - id: ruff-format
+
+- repo: https://github.com/sphinx-contrib/sphinx-lint
+  rev: v1.0.2
+  hooks:
+  - id: sphinx-lint
 
 # We use the Python version instead of the original version which seems to require Docker
 # https://github.com/koalaman/shellcheck-precommit
