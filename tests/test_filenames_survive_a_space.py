@@ -14,7 +14,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from conftest import run_step
 
 SPACED = "my package.tar.gz"
@@ -35,7 +34,9 @@ def release_env(tmp_path: Path) -> dict[str, str]:
     (tmp_path / "release-assets").mkdir()
     (tmp_path / "s3-assets").mkdir()
     envfile = tmp_path / "garasign-envfile"
-    envfile.write_text("GRS_CONFIG_USER1_USERNAME=user\nGRS_CONFIG_USER1_PASSWORD=pass\n")
+    envfile.write_text(
+        "GRS_CONFIG_USER1_USERNAME=user\nGRS_CONFIG_USER1_PASSWORD=pass\n"
+    )
     return {
         "GARASIGN_ENVFILE": str(envfile),
         "GPG_KEY_ID": "DEADBEEFCAFE",
@@ -66,7 +67,12 @@ class TestSigning:
         self, workspace: Path, release_env: dict[str, str], tmp_path: Path
     ) -> None:
         """Half of the --local-user fix. The other half is gpg's, and needs a real container."""
-        run_step("gpg-sign", inputs={"filenames": f"{SPACED}\n"}, env=release_env, cwd=workspace)
+        run_step(
+            "gpg-sign",
+            inputs={"filenames": f"{SPACED}\n"},
+            env=release_env,
+            cwd=workspace,
+        )
 
         signature = (tmp_path / "release-assets" / f"{SPACED}.sig").read_text()
         assert "key=DEADBEEFCAFE" in signature
@@ -76,7 +82,10 @@ class TestSigning:
     ) -> None:
         """Signing fewer files than asked for, quietly, is how an unsigned artifact ships."""
         result = run_step(
-            "gpg-sign", inputs={"filenames": "dist/*.whl"}, env=release_env, cwd=workspace
+            "gpg-sign",
+            inputs={"filenames": "dist/*.whl"},
+            env=release_env,
+            cwd=workspace,
         )
 
         assert result.returncode != 0
@@ -151,7 +160,10 @@ class TestTheAuthorizedPublicationReport:
         )
 
         assert result.returncode == 0, result.stderr
-        assert "Releaser: test-actor" in (tmp_path / "s3-assets" / "authorized-publication.txt").read_text()
+        assert (
+            "Releaser: test-actor"
+            in (tmp_path / "s3-assets" / "authorized-publication.txt").read_text()
+        )
 
     def test_no_artifacts_is_said_rather_than_left_blank(
         self, workspace: Path, release_env: dict[str, str], tmp_path: Path
@@ -164,7 +176,10 @@ class TestTheAuthorizedPublicationReport:
         )
 
         assert result.returncode == 0, result.stderr
-        assert "No published artifacts." in (tmp_path / "s3-assets" / "authorized-publication.txt").read_text()
+        assert (
+            "No published artifacts."
+            in (tmp_path / "s3-assets" / "authorized-publication.txt").read_text()
+        )
 
 
 class TestTheS3Upload:
@@ -176,7 +191,11 @@ class TestTheS3Upload:
 
         result = run_step(
             "upload-s3-assets",
-            inputs={"version": "0.1.0rc1", "product_name": "strands-mongodb", "filenames": "*"},
+            inputs={
+                "version": "0.1.0rc1",
+                "product_name": "strands-mongodb",
+                "filenames": "*",
+            },
             env={**release_env, "STUB_AWS_LOG": str(log)},
             cwd=tmp_path,
         )
@@ -216,7 +235,9 @@ class TestTheS3Upload:
         assert result.returncode != 0
         assert "AWS_BUCKET" in result.stdout + result.stderr
 
-    def test_a_dry_run_uploads_nothing(self, release_env: dict[str, str], tmp_path: Path) -> None:
+    def test_a_dry_run_uploads_nothing(
+        self, release_env: dict[str, str], tmp_path: Path
+    ) -> None:
         (tmp_path / "s3-assets" / "report.txt").write_bytes(b"x")
         log = tmp_path / "aws.log"
 

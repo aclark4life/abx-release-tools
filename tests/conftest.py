@@ -54,7 +54,10 @@ def load_action(name: str) -> dict:
 
 def declared_inputs(action: dict) -> dict[str, str]:
     """Input names mapped to their defaults, as a caller supplying nothing would see them."""
-    return {key: str(spec.get("default", "")) for key, spec in (action.get("inputs") or {}).items()}
+    return {
+        key: str(spec.get("default", ""))
+        for key, spec in (action.get("inputs") or {}).items()
+    }
 
 
 def run_steps(action: dict) -> list[dict]:
@@ -114,6 +117,7 @@ def run_step(
 
     return subprocess.run(
         ["bash", "-c", script],
+        check=False,
         cwd=cwd,
         env=environment,
         capture_output=True,
@@ -129,6 +133,8 @@ def shellcheck_path() -> str:
     check that quietly skips itself on a machine without shellcheck is not a check.
     """
     here = str(Path(sys.executable).parent)
-    found = shutil.which("shellcheck", path=os.pathsep.join([here, os.environ.get("PATH", "")]))
+    found = shutil.which(
+        "shellcheck", path=os.pathsep.join([here, os.environ.get("PATH", "")])
+    )
     assert found, "shellcheck not found; pip install -r tests/requirements.txt"
     return found
