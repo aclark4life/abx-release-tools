@@ -1,15 +1,21 @@
-# SilkBomb SBOM function and task for Evergreen (TEMPLATE).
+# SilkBomb SBOM function and task for Evergreen.
+#
+# The shell lives in this repo, in evergreen/generate-sbom.sh,
+# evergreen/ecr-login.sh and evergreen/upload-sbom.sh. What stays below is the
+# part that cannot: the ec2.assume_role and expansions.update built-ins, and
+# the environment that carries the session credentials into the scripts. Copy
+# these into the project config, adapt the TODO values, and call
+# "fetch abx-release-tools" (evergreen/fetch.yml) first.
 #
 # Pattern from mongodb/mongo-csharp-driver: evergreen/evergreen.yml
-# "upload-sbom" and evergreen/upload-sbom.sh — a public, working Evergreen
-# pipeline. Evergreen cannot include YAML from another repo: copy these into
-# the project config and adapt the TODO values.
+# "upload-sbom" and evergreen/upload-sbom.sh, a public, working Evergreen
+# pipeline.
 #
 # upload only: it needs no Kondukto token, just the silkbomb IAM role's AWS
-# session credentials (mongo-csharp-driver upload-sbom.sh). The augmented
-# SBOM that ships with a release is produced on GitHub Actions by the sbom
-# action, which reads KONDUKTO_TOKEN from the AWS secret the setup action
-# fetches — the same path pymongo's release runs.
+# session credentials. The augmented SBOM that ships with a release is
+# produced on GitHub Actions by the sbom action, which reads KONDUKTO_TOKEN
+# from the AWS secret the setup action fetches, the same path pymongo's
+# release runs.
 #
 # Project variables needed (Evergreen project settings):
 #   silkbomb_role_arn: arn:aws:iam::119629040606:role/silkbomb
@@ -23,11 +29,7 @@ functions:
   generate_sbom:
     - command: shell.exec
       params:
-        script: |
-          set -eu
-          pip install cyclonedx-py
-          # Generate from the pinned release requirements, not dev dependencies.
-          cyclonedx-py requirements --of json -o sbom.json
+        script: bash abx-release-tools/evergreen/generate-sbom.sh
 
   login_to_ecr:
     # DOCKER_CONFIG keeps the login valid after the assume_role below
@@ -46,9 +48,7 @@ functions:
           AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
           AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
           AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
-        script: |
-          set -eu
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 901841024863.dkr.ecr.us-east-1.amazonaws.com
+        script: bash abx-release-tools/evergreen/ecr-login.sh
 
   upload_sbom:
     - command: ec2.assume_role
@@ -60,17 +60,14 @@ functions:
           AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
           AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
           AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
-        script: |
-          set -eu
-          docker run --rm -v "$(pwd):/pwd" \
-            --user "$(id -u):$(id -g)" \
-            --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env AWS_SESSION_TOKEN \
-            901841024863.dkr.ecr.us-east-1.amazonaws.com/release-infrastructure/silkbomb:2.0 \
-            upload --repo <TODO org>/<TODO repo> --branch "${branch_name}" --sbom-in /pwd/sbom.json
+          KONDUKTO_REPO: <TODO org>/<TODO repo>
+          KONDUKTO_BRANCH: ${branch_name}
+        script: bash abx-release-tools/evergreen/upload-sbom.sh
 
 tasks:
   - name: UPLOAD_SBOM_TO_KONDUKTO
     commands:
+      - func: "fetch abx-release-tools"
       - func: generate_sbom
       - func: login_to_ecr
       - func: upload_sbom

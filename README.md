@@ -29,8 +29,12 @@ file when the repo moves or renames.
 ## Layout
 
 - `actions/` — GitHub Actions composite actions, consumed with `uses:`.
-- `evergreen/` — Evergreen function and task templates. Evergreen cannot
-  include YAML from another repo. Copy them into the project config.
+- `evergreen/` — shell scripts a project's Evergreen config calls, plus the
+  thin function templates that call them. Clone this repo at run time and run
+  the scripts from the clone, the way the drivers consume
+  [drivers-evergreen-tools](https://github.com/mongodb-labs/drivers-evergreen-tools).
+  The scripts are shared; the YAML is copied, because Evergreen built-ins such
+  as `ec2.assume_role` and `papertrail.trace` have no shell equivalent.
 
 ## Usage
 
@@ -82,8 +86,8 @@ pre-publish's `tag-version`. The hardening above means the bytes this repo
 ships are ahead of upstream; the upstream fixes are tracked in
 [PYTHON-6234](https://jira.mongodb.org/browse/PYTHON-6234).
 
-The Evergreen templates follow public, working Evergreen release pipelines.
-Each file cites its source:
+The Evergreen scripts and templates follow public, working Evergreen release
+pipelines. Each file cites its source:
 
 - `evergreen/sign_artifacts.yml` — mongodb/mongo-rust-driver
   (`.evergreen/releases.yml`, `.evergreen/release-sign.sh`).
@@ -93,6 +97,19 @@ Each file cites its source:
   `sbom` action.
 - `evergreen/papertrail.yml` — mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
   and mongodb/mongo-rust-driver (`.evergreen/releases.yml`).
+
+The clone-and-call-the-scripts arrangement follows
+[drivers-evergreen-tools](https://github.com/mongodb-labs/drivers-evergreen-tools),
+which pymongo and the Rust driver consume that way: `include:` entries in both
+projects are same-repo paths, neither declares an Evergreen module, and the
+shared repo arrives as a clone at `$DRIVERS_TOOLS` whose scripts the config
+calls.
+
+The scripts carry the same fixes as the actions: the credential env file is
+truncated not appended, written under `umask 077`, and rejected if a value
+holds a newline; `gpg` is pinned with `--local-user`; file names reach the
+container as positional arguments rather than as script text; and every
+expansion that reaches a command line is quoted.
 
 ## Hardening
 

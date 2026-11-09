@@ -1,10 +1,14 @@
-# Papertrail trace function for Evergreen (TEMPLATE).
+# Papertrail trace function for Evergreen.
+#
+# The version derivation lives in this repo, in evergreen/release-version.sh.
+# papertrail.trace and expansions.update are Evergreen built-ins, so they stay
+# below. Copy this function into the project config, and call
+# "fetch abx-release-tools" (evergreen/fetch.yml) first.
 #
 # Pattern from public Evergreen release configs: mongodb/mongo-java-driver
 # (.evergreen/.evg.yml "publish" trace function) and mongodb/mongo-rust-driver
-# (.evergreen/releases.yml "publish papertrail"). Evergreen cannot include
-# YAML from another repo: copy this into the project config. Pass the product
-# name as a function var at the call site.
+# (.evergreen/releases.yml "publish papertrail"). Pass the product name as a
+# function var at the call site.
 #
 # Hidden project variables needed (Evergreen project settings):
 #   papertrail_key_id      Papertrail Key ID
@@ -21,12 +25,8 @@ functions:
   trace artifacts:
     - command: shell.exec
       params:
-        script: |
-          set -eu
-          # cut -c 2- removes the leading v from the tag. Skip it if the
-          # project tags releases without a v prefix.
-          version=$(git describe --tags | cut -c 2-)
-          echo "release_version: \"$version\"" > trace-expansions.yml
+        # Set TAG_PREFIX empty for a project that tags without a leading v.
+        script: bash abx-release-tools/evergreen/release-version.sh
     - command: expansions.update
       params:
         file: trace-expansions.yml
@@ -48,6 +48,7 @@ functions:
 # tasks:
 #   - name: release
 #     commands:
+#       - func: "fetch abx-release-tools"
 #       - func: publish
 #       - func: trace artifacts
 #         vars:

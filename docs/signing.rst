@@ -74,13 +74,23 @@ Inputs
 Evergreen: ``evergreen/sign_artifacts.yml``
 -------------------------------------------
 
-Evergreen cannot include YAML from another repo. Copy the file into
-the project config.
+The signing shell lives in ``evergreen/ecr-login.sh`` and
+``evergreen/sign-artifact.sh``. A project clones this repo at run time
+and calls the scripts from the clone; see :ref:`evergreen-fetch`. The
+function template in ``evergreen/sign_artifacts.yml`` is copied into
+the project config, because ``ec2.assume_role`` is an Evergreen
+built-in with no shell equivalent.
 
 Hidden project variables needed:
 
 - ``GARASIGN_USERNAME`` — Garasign username (``ai-builder-experience``)
 - ``GARASIGN_PASSWORD`` — Garasign password
+- ``GPG_KEY_ID`` — key to sign with
+
+``sign-artifact.sh`` passes ``GPG_KEY_ID`` to ``gpg --local-user``. A
+Garasign account holding more than one key otherwise signs with
+whichever key gpg picks, and the signature then verifies against a key
+the release notes do not name.
 
 Task usage:
 
@@ -89,6 +99,7 @@ Task usage:
    tasks:
      - name: sign_artifacts
        commands:
+         - func: "fetch abx-release-tools"
          - func: build  # produces dist/
          - func: sign_artifact
            vars:

@@ -65,8 +65,12 @@ contain ``KONDUKTO_TOKEN``. See :doc:`setup`.
 Evergreen: ``evergreen/silkbomb.yml``
 -------------------------------------
 
-Evergreen cannot include YAML from another repo. Copy the file into
-the project config and adapt the ``<TODO>`` values.
+The shell lives in ``evergreen/generate-sbom.sh``,
+``evergreen/ecr-login.sh`` and ``evergreen/upload-sbom.sh``. A project
+clones this repo at run time and calls the scripts from the clone; see
+:ref:`evergreen-fetch`. The function and task templates in
+``evergreen/silkbomb.yml`` are copied into the project config, and the
+``<TODO>`` values adapted.
 
 Project variables needed:
 

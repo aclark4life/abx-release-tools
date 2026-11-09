@@ -72,3 +72,40 @@ line-oriented). The files are written under ``RUNNER_TEMP`` with
 
 It also sets the git identity to ``mongodb-dbx-release-bot[bot]`` for
 release commits and tags.
+
+.. _evergreen-fetch:
+
+Evergreen: fetch the tools
+--------------------------
+
+Evergreen has no cross-repo ``uses:``. It can include YAML from a repo
+attached as a module, but no MongoDB driver does that, so this repo
+follows the pattern the drivers do run: clone the tools at run time and
+call their scripts. That is how
+`drivers-evergreen-tools
+<https://github.com/mongodb-labs/drivers-evergreen-tools>`_ is
+consumed; pymongo clones it and calls
+``${DRIVERS_TOOLS}/.evergreen/teardown.sh`` and the rest.
+
+Copy this function from ``evergreen/fetch.yml`` into the project
+config, and call it before any other function in ``evergreen/``:
+
+.. code-block:: yaml
+
+   functions:
+     "fetch abx-release-tools":
+       - command: shell.exec
+         params:
+           script: |
+             set -euo pipefail
+             rm -rf abx-release-tools
+             git clone https://github.com/<owner>/abx-release-tools.git
+             git -C abx-release-tools checkout "${abx_release_tools_ref}"
+
+Set ``abx_release_tools_ref`` to a commit SHA, the same pin the actions
+take. A branch name is not a pin.
+
+The shell is shared this way, so a fix here reaches every project on
+its next run. The YAML is still copied, because Evergreen built-ins
+such as ``ec2.assume_role``, ``expansions.update`` and
+``papertrail.trace`` have no shell equivalent.
