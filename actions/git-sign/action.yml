@@ -1,5 +1,10 @@
-# Extracted unchanged from mongodb-labs/drivers-github-tools@99b1cbd
-# (upstream path: git-sign/action.yml). Keep inputs and semantics aligned with upstream.
+# Extracted from mongodb-labs/drivers-github-tools@99b1cbd (upstream path: git-sign/action.yml),
+# then hardened. The inputs and semantics are unchanged.
+#
+# Divergence from upstream, deliberate: `set -euo pipefail`, quoted paths, and a check that the
+# setup action has run. `command` is still interpolated into the container's shell, because
+# running an arbitrary git command is what this action is for; callers must not pass it
+# untrusted input.
 name: "Run git actions in a signing container"
 description: "Allows running arbitrary git actions in a container with GPG keys loaded"
 inputs:
@@ -22,12 +27,14 @@ runs:
         ECR_REPOSITORY: ${{ inputs.ecr_repository }}
         COMMAND: ${{ inputs.command }}
       run: |
+        set -euo pipefail
+        : "${GARASIGN_ENVFILE:?not set; run the setup action first}"
         WORKING_DIR=/home/git-checkout
         docker run \
-          --env-file=$GARASIGN_ENVFILE \
+          --env-file="$GARASIGN_ENVFILE" \
           --rm \
-          -v $(pwd):$WORKING_DIR \
-          -w $WORKING_DIR \
-          ${ECR_REGISTRY}/${ECR_REPOSITORY} \
+          -v "$(pwd):$WORKING_DIR" \
+          -w "$WORKING_DIR" \
+          "${ECR_REGISTRY}/${ECR_REPOSITORY}" \
           /bin/bash -c "git config --global --add safe.directory $WORKING_DIR && gpgloader && ${COMMAND}"
       shell: bash

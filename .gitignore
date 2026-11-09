@@ -1,2 +1,6 @@
 .pre-commit-cache/
 docs/_build/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/

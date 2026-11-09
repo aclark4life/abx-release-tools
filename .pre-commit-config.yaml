@@ -16,7 +16,8 @@ repos:
   hooks:
     - id: shellcheck
       name: shellcheck
-      args: ["--severity=warning"]
+      # Default severity, not --severity=warning: SC2086, an unquoted expansion, is a note.
+      # The repository shipped one on a caller-controlled path.
       stages: [manual]
 
 - repo: https://github.com/sirosen/check-jsonschema
@@ -27,3 +28,4 @@ repos:
         (?x)^(
           actions/.*action\.(yml|yaml)
         )$
+    - id: check-github-workflows

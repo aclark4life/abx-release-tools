@@ -1,10 +1,22 @@
-# Extracted unchanged from mongodb-labs/drivers-github-tools@99b1cbd
-# (upstream path: gpg-sign/action.yml). Keep inputs and semantics aligned with upstream.
+# Extracted from mongodb-labs/drivers-github-tools@99b1cbd (upstream path: gpg-sign/action.yml),
+# then hardened. The `filenames` input and the output location are unchanged.
+#
+# Divergence from upstream, deliberate:
+#   - The file list reaches the container NUL-delimited over stdin instead of being interpolated
+#     into the container's shell. Upstream's `for filename in ${{ inputs.filenames }}` word-splits,
+#     so a name containing a space is signed as two names that do not exist.
+#   - `--local-user "$GPG_KEY_ID"` pins the signing key. Without it a Garasign account holding more
+#     than one key signs with whichever gpg picks, and the signature verifies against a key the
+#     release notes do not name.
+#   - Inputs are passed through `env:` rather than interpolated into `run:`, so a crafted input
+#     cannot become shell. `${{ }}` is substituted before bash sees the script.
+#   - `filenames` may be newline-separated as well as space-separated. Globs are expanded here, and
+#     a name containing a space survives that expansion; a space-separated list cannot express one.
 name: "Sign artifact(s) using garasign"
 description: "Signs release artifact(s)"
 inputs:
   filenames:
-    description: "File name(s) to sign, can be a glob pattern"
+    description: "File name(s) to sign; space- or newline-separated, and each may be a glob pattern"
     required: true
   ecr_registry:
     description: "The ECR registry to use"
@@ -16,33 +28,89 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Get the list of filenames as a space-separated string
-      shell: bash
-      id: filenames
-      run: |
-          set -eux
-          FILENAMES="${{inputs.filenames}}"
-          if [[ $FILENAMES =~ '*' ]]; then
-            FILENAMES=$(ls $FILENAMES | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/ /g')
-          fi
-          echo "names=\"$FILENAMES\"" >> $GITHUB_OUTPUT
-    - name: "Create detached signature for file"
+    - name: "Create detached signatures and move them to the release directory"
       shell: bash
       env:
+        FILENAMES: ${{ inputs.filenames }}
         ECR_REGISTRY: ${{ inputs.ecr_registry }}
         ECR_REPOSITORY: ${{ inputs.ecr_repository }}
       run: |
-        docker run \
-          --env-file=$GARASIGN_ENVFILE \
-          --rm \
-          -v $(pwd):$(pwd) \
-          -w $(pwd) \
-          ${ECR_REGISTRY}/${ECR_REPOSITORY} \
-          /bin/bash -c 'gpgloader && for filename in ${{ inputs.filenames }}; do gpg --detach-sign --armor --output ${filename}.sig ${filename}; done'
+        set -euo pipefail
 
-    - name: "Move the signature files to the release directory"
-      shell: bash
-      run: |
-        set -eux
-        export FILENAMES=${{steps.filenames.outputs.names}}
-        for filename in $FILENAMES; do mv ${filename}.sig $RELEASE_ASSETS; done
+        : "${GARASIGN_ENVFILE:?not set; run the setup action first}"
+        : "${GPG_KEY_ID:?not set; run the setup action first}"
+        : "${RELEASE_ASSETS:?not set; run the setup action first}"
+
+        # Split the input into patterns, then expand each. A pattern that matches nothing is an
+        # error: silently signing fewer files than asked for is how an unsigned artifact ships.
+        # A newline in the input means one pattern per line, and a pattern may then contain a
+        # space. Without a newline the input is a space-separated list, which cannot express one.
+        patterns=()
+        if [[ "$FILENAMES" == *$'\n'* ]]; then
+          while IFS= read -r line; do
+            [ -n "$line" ] && patterns+=("$line")
+          done <<< "$FILENAMES"
+        else
+          # shellcheck disable=SC2206  # deliberate: a space-separated list is the legacy form
+          patterns=($FILENAMES)
+        fi
+
+        files=()
+        for pattern in "${patterns[@]}"; do
+          # IFS empty so the pattern is not word-split before it is globbed: a pattern containing a
+          # space must stay one word. Pathname expansion still yields one field per match. An
+          # unmatched glob stays literal, and the existence test below rejects it.
+          saved_ifs=$IFS
+          IFS=''
+          # shellcheck disable=SC2206  # deliberate: this is the glob expansion
+          matches=($pattern)
+          IFS=$saved_ifs
+          matched=0
+          for path in "${matches[@]}"; do
+            if [ -e "$path" ]; then
+              matched=1
+              # Two patterns can match the same file. Keeping it once means it is signed,
+              # reported or uploaded once; the second pass over it would act on a file the
+              # first pass has already moved. Linear scan: the list is a release's worth.
+              already=0
+              for seen in ${files[@]+"${files[@]}"}; do
+                if [ "$seen" = "$path" ]; then
+                  already=1
+                  break
+                fi
+              done
+              if [ "$already" -eq 0 ]; then
+                files+=("$path")
+              fi
+            fi
+          done
+          if [ "$matched" -eq 0 ]; then
+            echo "::error::no file matches '$pattern'"
+            exit 1
+          fi
+        done
+
+        if [ "${#files[@]}" -eq 0 ]; then
+          echo "::error::filenames expanded to nothing"
+          exit 1
+        fi
+
+        printf 'Signing %s file(s) with key %s\n' "${#files[@]}" "$GPG_KEY_ID"
+
+        # gpgloader reads the credentials from the env file and must not consume the file list, so
+        # its stdin is closed separately. The loop then reads the NUL-delimited list from stdin.
+        printf '%s\0' "${files[@]}" | docker run --rm -i \
+          --env-file="$GARASIGN_ENVFILE" \
+          -e GPG_KEY_ID \
+          -v "$(pwd):$(pwd)" \
+          -w "$(pwd)" \
+          "${ECR_REGISTRY}/${ECR_REPOSITORY}" \
+          /bin/bash -ec 'gpgloader </dev/null; while IFS= read -r -d "" f; do gpg --local-user "$GPG_KEY_ID" --detach-sign --armor --output "$f.sig" "$f"; done'
+
+        for path in "${files[@]}"; do
+          if [ ! -s "$path.sig" ]; then
+            echo "::error::no signature was produced for '$path'"
+            exit 1
+          fi
+          mv -- "$path.sig" "$RELEASE_ASSETS/"
+        done

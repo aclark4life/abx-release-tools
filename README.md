@@ -74,11 +74,15 @@ guides have the details:
 
 ## Provenance
 
-The GitHub Actions are extracted unchanged from
+The GitHub Actions were extracted from
 [mongodb-labs/drivers-github-tools](https://github.com/mongodb-labs/drivers-github-tools)
-at commit `99b1cbd729bc83bf7fc74e1b2a97fffad3d65d7b`. Each file carries a
-provenance comment. Do not change semantics silently: keep names and inputs
-aligned with upstream so fixes are easy to cherry-pick.
+at commit `99b1cbd729bc83bf7fc74e1b2a97fffad3d65d7b`, then hardened. Each file
+carries a provenance comment listing what diverges and why.
+
+Action names and outputs are unchanged. Two behaviours changed deliberately,
+both recorded under "Input contract" below. Nothing changed silently: the rule
+stays that semantics track upstream so fixes cherry-pick, and where this repo
+leaves upstream it says so in the file and here.
 
 Every extracted action runs in production in pymongo's release workflow
 ([release-python.yml](https://github.com/mongodb/mongo-python-driver/blob/main/.github/workflows/release-python.yml)),
@@ -98,6 +102,113 @@ Each file cites its source:
 - `evergreen/papertrail.yml` — mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
   and mongodb/mongo-rust-driver (`.evergreen/releases.yml`).
 
+## Hardening
+
+The extracted actions have defects. Two sources found them, kept distinct
+because they carry different weight.
+
+**Five came from `mongodb-developer/claude-agent-sdk-mongodb-session-store`**,
+the first ABX repo to run Garasign signing in production. It carries local
+rewrites of `setup` and `gpg-sign` rather than using the extracted versions,
+for exactly these reasons. Each has been met in a real release; they are folded
+back here so the next integration needs no copy of its own:
+
+- **`gpg-sign` word-split the file list.** `for filename in ${{ inputs.filenames }}`
+  splits on whitespace, so `my package.tar.gz` became `my` and
+  `package.tar.gz`, neither of which exists. Nothing was signed for it and the
+  step exited 0 -- a release that looks signed. The list now reaches the
+  container NUL-delimited over stdin.
+- **`gpg-sign` did not pin the key.** Without `--local-user "$GPG_KEY_ID"`, a
+  Garasign account holding more than one key signs with whichever gpg picks,
+  and the signature verifies against a key the release notes do not name.
+- **Credentials were written to a docker `--env-file` unchecked.** The format
+  is line-oriented, so a newline in a password silently truncated it and the
+  run failed as a Garasign auth error -- a misleading place to look. Presence
+  and newlines are now checked first, under `umask 077`.
+- **`setup.sh` reconstructed the secret-name prefix** to strip it, which cannot
+  work for an ARN. The secret is now loaded under a blank alias, so keys arrive
+  unprefixed, and a comma in the secret id is rejected before it is read.
+- **`setup.sh` used bare `mkdir`**, so a rerun of a job failed.
+
+**The rest were found auditing the extracted actions while applying those
+five.** These are reasoned from the code rather than observed in a release,
+which is a weaker claim; each is nonetheless reachable from an input a caller
+supplies:
+
+- **Inputs were interpolated into `run:` bodies** in `gpg-sign`,
+  `authorized-pub` and `upload-s3-assets` -- in `authorized-pub`, a GitHub
+  token among them. `${{ }}` is substituted before bash parses the script, so
+  an input arrives as syntax rather than as a value. Inputs now arrive through
+  `env:`. `git-sign` still interpolates its `command`, because running an
+  arbitrary git command is what it is for; callers must not pass it untrusted
+  input.
+- **A pattern matching nothing was not an error.** Every action that takes
+  `filenames` now fails on one. An upload or signing step that quietly handles
+  zero files and exits 0 is the failure these steps exist to catch.
+- **A file matched by two patterns was handled twice.** `dist/*.whl dist/*`
+  signed, reported and uploaded the same artifact twice. In `gpg-sign` the
+  second pass then looked for a signature the first pass had already moved, so
+  a correct release failed reporting that no signature was produced -- the
+  message that is supposed to mean the container produced nothing.
+- **`sbom` and `git-sign` left expansions unquoted**, including
+  `--sbom-in /repo/${SBOM_IN_PATH}`, which a caller supplies. A path containing
+  a space asked silkbomb for two files; one containing a `*` asked it for
+  whatever matched in the working directory.
+- **`setup.sh` wrote to `/tmp`.** It now writes under `RUNNER_TEMP`, which the
+  runner scopes to the job and empties at the end of it. `/tmp` stays as the
+  fallback off a runner.
+
+These are generic fixes, so they go upstream to drivers-github-tools too,
+rather than living only here.
+
+## Input contract
+
+Two behaviours changed. Both are additive for a correct caller and breaking
+for one that was relying on the old silence.
+
+Every action taking `filenames` accepts a **newline-separated** list as well as
+the original space-separated one, and treats the input as newline-separated
+whenever it contains a newline:
+
+```yaml
+filenames: dist/*.whl dist/*.tar.gz      # space-separated, as upstream
+filenames: |                             # newline-separated, one pattern per line
+  dist/*.whl
+  my package.tar.gz
+```
+
+The newline form is the only way to name a file containing a space. A
+space-separated list cannot express one, which is the defect that started this.
+
+**A pattern matching nothing is now an error**, where upstream exited 0. A
+caller relying on a glob that sometimes matches nothing must stop passing it,
+rather than expect the step to shrug.
+
+## Tests
+
+`pytest` (`pip install -r tests/requirements.txt`). `.github/workflows/test.yml`
+runs it, and `pre-commit --hook-stage manual`, on every push and pull request.
+
+Nearly all of the logic here lives in the `run:` bodies of composite actions,
+which neither existing check opened: the pre-commit shellcheck hook matches
+`.sh` files, of which this repository has one. So the suite parses each
+`action.yml` and tests those bodies directly.
+
+The static tests assert that no `${{ }}` survives into a `run:` body, that
+every expression names a declared input, that every script sets
+`-euo pipefail` and declares `shell: bash`, and that each body passes
+shellcheck at its default severity. The behavioural tests run the extracted
+bodies against a fixture directory with `docker`, `gh` and `aws` stubbed on
+`PATH`.
+
+The fixture artifact is named `my package.tar.gz`. Every file-list defect
+listed above turned on a name containing a space, including two introduced
+while fixing the first one.
+
+The suite pulls no container and makes no AWS call, so `gpgloader`,
+`--local-user`, the silkbomb invocations and the secret load are not exercised
+by it. A real release is still the first test of those.
+
 ## Out of scope (deliberately)
 
 The drivers-github-tools release pipeline around `python/post-publish`
@@ -113,11 +224,13 @@ it from drivers-github-tools into this repo first, then use it from here.
   adapts when DevProd changes SilkBomb, Garasign, or Papertrail interfaces.
 - Generic fixes go upstream to drivers-github-tools too, so drift stays
   visible instead of silent.
-- Run `pre-commit run --all-files` before committing.
+- Run `pre-commit run --all-files` before committing, and `pytest`.
 
 ## TODO before this leaves POC
 
-- [ ] Move the repo to mongodb-labs. Composite actions in a private personal
-      repo cannot be used by org repositories; mongodb-labs makes the repo
-      public and consumable. Update the README owner placeholders when the
-      move lands.
+- [ ] Move the repo to mongodb-labs, for ownership rather than for access.
+      The stated reason -- that a private personal repo cannot serve composite
+      actions to org repositories -- does not apply: this repo is public, and a
+      public repo is usable by any workflow. What a personal repo cannot give
+      is an owner who is not one person. Update the README owner placeholders
+      when the move lands.

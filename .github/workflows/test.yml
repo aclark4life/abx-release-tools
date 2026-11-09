@@ -1,0 +1,46 @@
+# The actions in this repository are the only thing it ships, and nearly all of their logic lives
+# in `run:` bodies. pre-commit's shellcheck hook never sees those -- it matches `.sh` files -- so
+# until this workflow existed the repository had no check over the code it exists to distribute.
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install the test dependencies
+        run: pip install -r tests/requirements.txt
+      - name: Run the tests
+        run: pytest
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      # --hook-stage manual, because shellcheck is declared at the manual stage upstream.
+      - name: Run pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files --hook-stage manual --show-diff-on-failure

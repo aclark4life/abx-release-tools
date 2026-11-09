@@ -1,5 +1,13 @@
-# Extracted unchanged from mongodb-labs/drivers-github-tools@99b1cbd
-# (upstream path: setup/action.yml). Keep inputs and semantics aligned with upstream.
+# Extracted from mongodb-labs/drivers-github-tools@99b1cbd (upstream path: setup/action.yml),
+# then hardened. Inputs and outputs are unchanged; the implementation is not.
+#
+# Divergence from upstream, deliberate:
+#   - The secret is loaded under a blank alias (`,<id>`) so its JSON keys are exported without a
+#     prefix. Upstream exports them prefixed and strips the prefix in setup.sh by reconstructing it
+#     from the secret id. That reconstruction cannot work for an ARN, because the action prefixes by
+#     the secret's name, not by what you passed.
+#   - A comma in the secret id is rejected before the secret is read. The action splits `alias,id`
+#     on a comma, so an id containing one is silently read as an alias plus a different id.
 name: Setup
 description: "Set up the Release Environment"
 inputs:
@@ -10,7 +18,7 @@ inputs:
     description: "The aws region to use"
     required: true
   aws_secret_id:
-    description: "The name of the aws secret to use"
+    description: "The name or ARN of the aws secret to use"
     required: true
   ecr_registry_id:
     description: "The ECR registry id to use"
@@ -25,7 +33,26 @@ inputs:
 runs:
   using: composite
   steps:
-  # Docker login must be done before input role login so we remain logged in for S3 upload.
+  # Before anything assumes a role, so a malformed id fails in two seconds rather than after the
+  # secret has been fetched under the wrong name.
+  - name: Validate the secret id
+    shell: bash
+    env:
+      AWS_SECRET_ID: ${{ inputs.aws_secret_id }}
+    run: |
+      set -euo pipefail
+      if [ -z "$AWS_SECRET_ID" ]; then
+        echo "::error::aws_secret_id is empty"
+        exit 1
+      fi
+      case "$AWS_SECRET_ID" in
+        *,*)
+          echo "::error::aws_secret_id contains a comma; aws-secretsmanager-get-secrets reads that as an alias separator"
+          exit 1 ;;
+      esac
+
+  # Docker login must be done before the input role login so the ECR credential survives the second
+  # role assumption and S3 upload still works.
   - name: configure aws credentials for ECR
     uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
     with:
@@ -48,11 +75,12 @@ runs:
       aws-region: ${{ inputs.aws_region_name }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # The leading comma is the blank alias: the secret's JSON keys become environment variables under
+  # their own names, with nothing prepended. A name and an ARN both work.
   - name: Read secrets from AWS Secrets Manager into environment variables
     uses: aws-actions/aws-secretsmanager-get-secrets@2297f9a879480a9e3af9b293ed15c70caf8e1c88 # v3.0.2
     with:
-      secret-ids: |
-        ${{ inputs.aws_secret_id }}
+      secret-ids: ",${{ inputs.aws_secret_id }}"
       parse-json-secrets: true
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
