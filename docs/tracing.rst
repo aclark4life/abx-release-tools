@@ -119,5 +119,5 @@ space- or newline-separated, each a glob, unmatched patterns error.
 The report lists Product, Version, Releaser, Build Source, Build
 Number, and one Filename and Shasum pair per dist file. This is the
 same report pymongo's release uploads to its release S3 bucket.
-Request the release S3 bucket from DevProd Release Infrastructure
-during onboarding.
+``setup`` reads the bucket name from the AWS secret and exports it as
+``AWS_BUCKET``; see :doc:`setup`.

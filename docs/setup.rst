@@ -72,16 +72,3 @@ line-oriented). The files are written under ``RUNNER_TEMP`` with
 
 It also sets the git identity to ``mongodb-dbx-release-bot[bot]`` for
 release commits and tags.
-
-Per-repo onboarding
--------------------
-
-Four steps sit outside this repo. Do them once per repo:
-
-1. File the Kondukto RNDSEC onboarding ticket.
-2. Request the Kondukto CI API token and store it as a CI secret.
-3. Agree the Papertrail product name with DevProd Release
-   Infrastructure.
-4. Register the PyPI pending publisher for each new package.
-
-The ABX release how-to guides have the details.

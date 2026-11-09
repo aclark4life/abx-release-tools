@@ -5,7 +5,7 @@ Shared release tooling for ABX (AI Builder Experience) integrations:
 `mongodb-developer/claude-agent-sdk-mongodb-session-store`, and new
 integrations that join that list.
 
-POC. Covers the four steps of the ABX release how-to guides; the
+POC. Covers the four steps of an ABX release; the
 [documentation](docs/index.rst) has the details:
 
 - [Dependency scanning with SilkBomb](docs/scanning.rst)
@@ -55,22 +55,10 @@ actions expect the environment set up by the `setup` action (`RELEASE_ASSETS`,
 `S3_ASSETS`, `GARASIGN_ENVFILE`, `KONDUKTO_ENVFILE`, `AWS_BUCKET`). Run
 `setup` first.
 
-Guide 3's GitHub Actions tracing alternative uses `authorized-pub` to write
-`authorized-publication.txt`, then `upload-s3-assets` to put it in the release
-S3 bucket. Run the two actions in that order: there is no `python/post-publish`
-release chain here (see Out of scope). Agree the bucket with DevProd Release
-Infrastructure.
-
-## Per-repo onboarding
-
-Four steps sit outside this repo, done once per repo. The ABX release how-to
-guides have the details:
-<https://docs.google.com/document/d/1rhYkWgbasperhG_9m5enMLamVkM0Nm5E7XuZ9lixxLI/edit>.
-
-1. File the Kondukto RNDSEC onboarding ticket.
-2. Request the Kondukto CI API token and store it as a CI secret.
-3. Agree the Papertrail product name with DevProd Release Infrastructure.
-4. Register the PyPI pending publisher for each new package.
+To trace a release from GitHub Actions, `authorized-pub` writes
+`authorized-publication.txt` and `upload-s3-assets` puts it in the release S3
+bucket. Run the two actions in that order: there is no `python/post-publish`
+release chain here (see Out of scope).
 
 ## Provenance
 
