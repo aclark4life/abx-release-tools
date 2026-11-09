@@ -12,7 +12,7 @@ import re
 import subprocess
 
 import pytest
-
+import yaml
 from conftest import (
     EXPRESSION,
     action_files,
@@ -21,7 +21,6 @@ from conftest import (
     run_steps,
     shellcheck_path,
 )
-import yaml
 
 # The only expressions allowed to reach a shell. `github.action_path` is set by the runner and is
 # not caller-controlled; it is how a composite action finds the script that ships beside it.
@@ -120,9 +119,12 @@ def test_every_script_passes_shellcheck(action, tmp_path) -> None:
         if body is None:
             continue
         script = tmp_path / f"{index}.sh"
-        script.write_text("#!/usr/bin/env bash\n" + EXPRESSION.sub("PLACEHOLDER", str(body)))
+        script.write_text(
+            "#!/usr/bin/env bash\n" + EXPRESSION.sub("PLACEHOLDER", str(body))
+        )
         result = subprocess.run(
             [shellcheck_path(), "--format=gcc", str(script)],
+            check=False,
             capture_output=True,
             text=True,
         )

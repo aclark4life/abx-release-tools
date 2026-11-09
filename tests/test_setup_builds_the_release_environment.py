@@ -11,7 +11,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from conftest import ACTIONS
 
 SETUP = ACTIONS / "setup" / "setup.sh"
@@ -35,10 +34,13 @@ def runner(tmp_path: Path) -> dict[str, str]:
     }
 
 
-def setup(tmp_path: Path, runner: dict[str, str], **secret: str) -> subprocess.CompletedProcess[str]:
+def setup(
+    tmp_path: Path, runner: dict[str, str], **secret: str
+) -> subprocess.CompletedProcess[str]:
     Path(runner["GITHUB_ENV"]).touch()
     return subprocess.run(
         ["bash", str(SETUP)],
+        check=False,
         cwd=tmp_path,
         env={"PATH": "/usr/bin:/bin:/usr/local/bin", **runner, **(SECRET | secret)},
         capture_output=True,
@@ -79,7 +81,9 @@ def test_a_missing_value_is_named(tmp_path: Path, runner, missing: str) -> None:
 
 
 @pytest.mark.parametrize("credential", ["GARASIGN_USERNAME", "GARASIGN_PASSWORD"])
-def test_a_newline_in_a_credential_is_refused(tmp_path: Path, runner, credential: str) -> None:
+def test_a_newline_in_a_credential_is_refused(
+    tmp_path: Path, runner, credential: str
+) -> None:
     """A docker --env-file is line-oriented. A newline truncates the value silently, and the run
     then fails as a Garasign auth error -- which sends the next person looking in the wrong place.
     """
@@ -128,4 +132,6 @@ def test_the_asset_directories_exist_and_record_the_run(tmp_path: Path, runner) 
 
     assert Path(env["RELEASE_ASSETS"]).is_dir()
     assert Path(env["S3_ASSETS"]).is_dir()
-    assert (Path(env["RELEASE_ASSETS"]) / "release_run_id.txt").read_text().strip() == "424242"
+    assert (
+        Path(env["RELEASE_ASSETS"]) / "release_run_id.txt"
+    ).read_text().strip() == "424242"
