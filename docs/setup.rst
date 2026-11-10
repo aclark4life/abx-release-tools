@@ -109,3 +109,9 @@ The shell is shared this way, so a fix here reaches every project on
 its next run. The YAML is still copied, because Evergreen built-ins
 such as ``ec2.assume_role``, ``expansions.update`` and
 ``papertrail.trace`` have no shell equivalent.
+
+Most of that shell is under ``evergreen/``. One script,
+``scripts/generate-sbom.sh``, sits outside it, because the
+``python/generate-sbom`` action runs the same file. The clone still
+reaches it: the function calls
+``abx-release-tools/scripts/generate-sbom.sh``.

@@ -50,27 +50,73 @@ Inputs
      - no
      - SilkBomb container location. Defaults to the DevProd registry.
 
-Generate the input SBOM first with an ecosystem-native tool. For
-Python, use ``cyclonedx-py`` against the pinned release requirements,
-not dev dependencies:
-
-.. code-block:: shell
-
-   pip install cyclonedx-py
-   cyclonedx-py requirements --of json -o sbom.json
+The ``sbom`` action reads the input SBOM; it does not make one. Run
+``python/generate-sbom`` first, or an ecosystem-native tool of your own.
 
 The augment step needs the Kondukto token, so the AWS secret must
 contain ``KONDUKTO_TOKEN``. See :doc:`setup`.
 
+GitHub Actions: ``python/generate-sbom``
+----------------------------------------
+
+Builds the input SBOM for a Python project with ``cyclonedx-py``. It
+needs no ``setup``: nothing here touches AWS.
+
+.. code-block:: yaml
+
+   - uses: <owner>/abx-release-tools/actions/python/generate-sbom@<sha>
+   - uses: <owner>/abx-release-tools/actions/sbom@<sha>
+
+Name the project type. ``cyclonedx-py`` reads one type per subcommand,
+and the default, ``requirements``, reads ``requirements.txt`` from the
+working directory. A project that declares its dependencies in
+``pyproject.toml`` has no such file, and the run then fails.
+
+Point ``source_path`` at the pinned release requirements. Dev
+dependencies do not ship, so they do not belong in the SBOM.
+
+Inputs
+------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Input
+     - Required
+     - Description
+   * - ``source``
+     - no
+     - ``cyclonedx-py`` subcommand naming the project type:
+       ``requirements``, ``poetry``, ``pipenv`` or ``environment``.
+       Default ``requirements``.
+   * - ``source_path``
+     - no
+     - Positional argument for that subcommand: a requirements file, a
+       project directory for ``poetry`` and ``pipenv``, an interpreter
+       for ``environment``. Each subcommand has its own default, so
+       this may be left empty.
+   * - ``sbom_out``
+     - no
+     - File to write. Default ``sbom.json``, which is what ``sbom``
+       reads.
+   * - ``cyclonedx_version``
+     - no
+     - Version of ``cyclonedx-py`` to install. Empty installs whatever
+       pip resolves. An installed ``cyclonedx-py`` is left alone.
+
 Evergreen: ``evergreen/silkbomb.yml``
 -------------------------------------
 
-The shell lives in ``evergreen/generate-sbom.sh``,
+The shell lives in ``scripts/generate-sbom.sh``,
 ``evergreen/ecr-login.sh`` and ``evergreen/upload-sbom.sh``. A project
 clones this repo at run time and calls the scripts from the clone; see
 :ref:`evergreen-fetch`. The function and task templates in
 ``evergreen/silkbomb.yml`` are copied into the project config, and the
 ``<TODO>`` values adapted.
+
+``generate-sbom.sh`` sits outside ``evergreen/`` because the
+``python/generate-sbom`` action runs it too. One copy of the shell, so
+a fix reaches both CI systems.
 
 Project variables needed:
 
@@ -78,6 +124,9 @@ Project variables needed:
 - ``devprod_platforms_ecr_readonly_role_arn`` —
   ``arn:aws:iam::901841024863:role/ecr-role-evergreen-ro``
 - ``branch_name`` — the branch being scanned
+- ``sbom_source``, ``sbom_source_arg`` — optional, the project type and
+  its path. Default ``requirements``, which reads
+  ``requirements.txt``.
 
 The template defines one task, ``UPLOAD_SBOM_TO_KONDUKTO``, in an
 ``ssdlc`` buildvariant. It needs no Kondukto token: the silkbomb IAM

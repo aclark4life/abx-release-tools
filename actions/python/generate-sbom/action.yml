@@ -1,0 +1,45 @@
+# ABX-specific: not extracted from upstream. Produces the input SBOM that the
+# `sbom` action feeds to SilkBomb. `sbom` reads sbom_in_path and assumes the
+# file is already there; upstream leaves making it to the caller, and the
+# Evergreen path wraps it, so the two CI systems disagreed on who owns the
+# step. This action closes that gap.
+#
+# The work is in scripts/generate-sbom.sh, which the Evergreen generate_sbom
+# function also calls. One copy, so a fix reaches both.
+name: Generate the input SBOM
+description: Builds a CycloneDX SBOM for a Python project with cyclonedx-py.
+inputs:
+  source:
+    description: >-
+      cyclonedx-py subcommand naming the project type: requirements, poetry,
+      pipenv, or environment.
+    default: requirements
+  source_path:
+    description: >-
+      Positional argument for that subcommand: a requirements file, a project
+      directory for poetry and pipenv, an interpreter for environment. Each
+      subcommand has its own default, so this may be left empty.
+    required: false
+  sbom_out:
+    description: File to write. The `sbom` action reads `sbom.json` by default.
+    default: sbom.json
+  cyclonedx_version:
+    description: >-
+      Version of cyclonedx-py to install. Empty installs whatever pip resolves.
+      An installed cyclonedx-py is left alone.
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Generate the input SBOM
+      shell: bash
+      env:
+        SBOM_SOURCE: ${{ inputs.source }}
+        SBOM_SOURCE_ARG: ${{ inputs.source_path }}
+        SBOM_OUT: ${{ inputs.sbom_out }}
+        CYCLONEDX_VERSION: ${{ inputs.cyclonedx_version }}
+      run: |
+        set -euo pipefail
+        # Three levels up from actions/python/generate-sbom is the repo root.
+        bash "${{ github.action_path }}/../../../scripts/generate-sbom.sh"

@@ -35,6 +35,10 @@ file when the repo moves or renames.
   [drivers-evergreen-tools](https://github.com/mongodb-labs/drivers-evergreen-tools).
   The scripts are shared; the YAML is copied, because Evergreen built-ins such
   as `ec2.assume_role` and `papertrail.trace` have no shell equivalent.
+- `scripts/` — shell both CI systems run. `generate-sbom.sh` is called by the
+  Evergreen `generate_sbom` function and by the `python/generate-sbom` action,
+  so it sits here rather than under `evergreen/`. One copy, so a fix reaches
+  both.
 
 ## Usage
 
@@ -45,6 +49,7 @@ uses: <owner>/abx-release-tools/actions/gpg-sign@main
 uses: <owner>/abx-release-tools/actions/git-sign@main
 uses: <owner>/abx-release-tools/actions/authorized-pub@main
 uses: <owner>/abx-release-tools/actions/upload-s3-assets@main
+uses: <owner>/abx-release-tools/actions/python/generate-sbom@main
 uses: <owner>/abx-release-tools/actions/python/publish@main
 ```
 
@@ -59,6 +64,11 @@ actions expect the environment set up by the `setup` action (`RELEASE_ASSETS`,
 `S3_ASSETS`, `GARASIGN_ENVFILE`, `KONDUKTO_ENVFILE`, `AWS_BUCKET`). Run
 `setup` first.
 
+`python/generate-sbom` needs no `setup`: nothing in it touches AWS. It writes
+the `sbom.json` that `sbom` then reads, so run it before `sbom`. Name the
+project type if the repo keeps its dependencies anywhere but
+`requirements.txt`; see [the scanning docs](docs/scanning.rst).
+
 To trace a release from GitHub Actions, `authorized-pub` writes
 `authorized-publication.txt` and `upload-s3-assets` puts it in the release S3
 bucket. Run the two actions in that order: there is no `python/post-publish`
@@ -70,6 +80,11 @@ The GitHub Actions were extracted from
 [mongodb-labs/drivers-github-tools](https://github.com/mongodb-labs/drivers-github-tools)
 at commit `99b1cbd729bc83bf7fc74e1b2a97fffad3d65d7b`, then hardened. Each file
 carries a provenance comment listing what diverges and why.
+
+One action is not extracted: `python/generate-sbom`. Upstream has no such
+action, because upstream leaves making the input SBOM to the caller. The
+Evergreen path here wraps that step, so the two CI systems disagreed on who
+owns it. Its file says so.
 
 Action names and outputs are unchanged. Two behaviours changed deliberately,
 both recorded under "Input contract" below. Nothing changed silently: the rule
@@ -200,7 +215,7 @@ runs it, and `pre-commit --hook-stage manual`, on every push and pull request.
 
 Nearly all of the logic here lives in the `run:` bodies of composite actions,
 which neither existing check opened: the pre-commit shellcheck hook matches
-`.sh` files, of which this repository has one. So the suite parses each
+`.sh` files, and a `run:` body is not one. So the suite parses each
 `action.yml` and tests those bodies directly.
 
 The static tests assert that no `${{ }}` survives into a `run:` body, that

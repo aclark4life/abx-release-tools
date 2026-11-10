@@ -30,8 +30,11 @@ ACTIONS = REPO / "actions"
 STUBS = Path(__file__).resolve().parent / "stubs"
 
 EXPRESSION = re.compile(r"\$\{\{\s*(.+?)\s*\}\}")
+ACTION_PATH_EXPRESSION = re.compile(r"\$\{\{\s*github\.action_path\s*\}\}")
 
-# github context values a step may read. Fixed so output is reproducible.
+# github context values a step may read. Fixed so output is reproducible. `action_path` is filled
+# in per action by run_step: the runner sets it to the directory of the action being run, and an
+# action that reaches a file beside it, or walks up to the repository root, depends on that.
 GITHUB_CONTEXT = {
     "actor": "test-actor",
     "run_id": "424242",
@@ -64,8 +67,14 @@ def run_steps(action: dict) -> list[dict]:
     return action["runs"]["steps"]
 
 
-def resolve(text: str, inputs: dict[str, str], env: dict[str, str]) -> str:
+def resolve(
+    text: str,
+    inputs: dict[str, str],
+    env: dict[str, str],
+    github: dict[str, str] | None = None,
+) -> str:
     """Substitute ``${{ }}`` the way Actions does: textually, before bash parses anything."""
+    github = github or GITHUB_CONTEXT
 
     def one(match: re.Match[str]) -> str:
         ref = match.group(1)
@@ -74,8 +83,8 @@ def resolve(text: str, inputs: dict[str, str], env: dict[str, str]) -> str:
             assert key in inputs, f"{ref!r} is not a declared input"
             return inputs[key]
         if context == "github":
-            assert key in GITHUB_CONTEXT, f"the test harness has no github.{key}"
-            return GITHUB_CONTEXT[key]
+            assert key in github, f"the test harness has no github.{key}"
+            return github[key]
         if context == "env":
             return env.get(key, "")
         raise AssertionError(f"the test harness cannot resolve {ref!r}")
@@ -96,6 +105,7 @@ def run_step(
     step = run_steps(action)[index]
 
     merged_inputs = declared_inputs(action) | (inputs or {})
+    github = {**GITHUB_CONTEXT, "action_path": str(ACTIONS / name)}
     environment = {
         **os.environ,
         **(env or {}),
@@ -103,9 +113,13 @@ def run_step(
     }
     # The step's own env: block is rendered last, so it can read the inputs.
     for key, value in (step.get("env") or {}).items():
-        environment[key] = resolve(str(value), merged_inputs, environment)
+        environment[key] = resolve(str(value), merged_inputs, environment, github)
 
-    script = step["run"]
+    # `github.action_path` is the one expression a run: body may hold, because the runner sets it
+    # and a caller cannot. It is substituted here so an action can reach the script that ships
+    # beside it. Every other expression still makes the harness refuse the body: that an input
+    # arrives as syntax rather than as a value is the defect these tests exist for.
+    script = ACTION_PATH_EXPRESSION.sub(github["action_path"], str(step["run"]))
     assert "${{" not in script, (
         f"{name} step {index} interpolates an expression into its run: body; "
         f"the harness refuses to run it, see test_no_expression_reaches_a_shell"
@@ -113,7 +127,7 @@ def run_step(
 
     working_directory = step.get("working-directory")
     if working_directory:
-        cwd = Path(resolve(str(working_directory), merged_inputs, environment))
+        cwd = Path(resolve(str(working_directory), merged_inputs, environment, github))
 
     return subprocess.run(
         ["bash", "-c", script],

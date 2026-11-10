@@ -1,11 +1,14 @@
 # SilkBomb SBOM function and task for Evergreen.
 #
-# The shell lives in this repo, in evergreen/generate-sbom.sh,
-# evergreen/ecr-login.sh and evergreen/upload-sbom.sh. What stays below is the
-# part that cannot: the ec2.assume_role and expansions.update built-ins, and
-# the environment that carries the session credentials into the scripts. Copy
-# these into the project config, adapt the TODO values, and call
-# "fetch abx-release-tools" (evergreen/fetch.yml) first.
+# The shell lives in this repo, in scripts/generate-sbom.sh,
+# evergreen/ecr-login.sh and evergreen/upload-sbom.sh. generate-sbom.sh sits
+# outside evergreen/ because the python/generate-sbom action runs it too.
+#
+# What stays below is the part that cannot move into a script: the
+# ec2.assume_role and expansions.update built-ins, and the environment that
+# carries the session credentials into the scripts. Copy these into the
+# project config, adapt the TODO values, and call "fetch abx-release-tools"
+# (evergreen/fetch.yml) first.
 #
 # Pattern from mongodb/mongo-csharp-driver: evergreen/evergreen.yml
 # "upload-sbom" and evergreen/upload-sbom.sh, a public, working Evergreen
@@ -22,6 +25,11 @@
 #   devprod_platforms_ecr_readonly_role_arn: arn:aws:iam::901841024863:role/ecr-role-evergreen-ro
 #   branch_name: the branch being scanned
 #
+# Optional, both defaulted in generate_sbom below:
+#   sbom_source: cyclonedx-py subcommand naming the project type.
+#     Default requirements.
+#   sbom_source_arg: the positional argument that subcommand takes.
+#
 # Session credentials ride the environment, never the script text: Evergreen
 # prints script text in task logs.
 
@@ -29,7 +37,14 @@ functions:
   generate_sbom:
     - command: shell.exec
       params:
-        script: bash abx-release-tools/evergreen/generate-sbom.sh
+        env:
+          # The default reads requirements.txt. A project that keeps its
+          # dependencies in pyproject.toml sets sbom_source to poetry, pipenv
+          # or environment, and sbom_source_arg to the path that subcommand
+          # takes.
+          SBOM_SOURCE: ${sbom_source|requirements}
+          SBOM_SOURCE_ARG: ${sbom_source_arg|}
+        script: bash abx-release-tools/scripts/generate-sbom.sh
 
   login_to_ecr:
     # DOCKER_CONFIG keeps the login valid after the assume_role below
