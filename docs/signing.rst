@@ -83,9 +83,9 @@ built-in with no shell equivalent.
 
 Hidden project variables needed:
 
-- ``GARASIGN_USERNAME`` — Garasign username (``ai-builder-experience``)
-- ``GARASIGN_PASSWORD`` — Garasign password
-- ``GPG_KEY_ID`` — key to sign with
+- ``GARASIGN_USERNAME``: Garasign username (``ai-builder-experience``)
+- ``GARASIGN_PASSWORD``: Garasign password
+- ``GPG_KEY_ID``: key to sign with
 
 ``sign-artifact.sh`` passes ``GPG_KEY_ID`` to ``gpg --local-user``. A
 Garasign account holding more than one key otherwise signs with

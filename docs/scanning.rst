@@ -120,11 +120,11 @@ a fix reaches both CI systems.
 
 Project variables needed:
 
-- ``silkbomb_role_arn`` — ``arn:aws:iam::119629040606:role/silkbomb``
-- ``devprod_platforms_ecr_readonly_role_arn`` —
+- ``silkbomb_role_arn``: ``arn:aws:iam::119629040606:role/silkbomb``
+- ``devprod_platforms_ecr_readonly_role_arn``:
   ``arn:aws:iam::901841024863:role/ecr-role-evergreen-ro``
-- ``branch_name`` — the branch being scanned
-- ``sbom_source``, ``sbom_source_arg`` — optional, the project type and
+- ``branch_name``: the branch being scanned
+- ``sbom_source``, ``sbom_source_arg``: optional, the project type and
   its path. Default ``requirements``, which reads
   ``requirements.txt``.
 

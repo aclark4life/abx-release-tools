@@ -51,17 +51,17 @@ What it writes
 
 The action logs in to ECR, reads the AWS secret, and exports:
 
-- ``RELEASE_ASSETS`` — directory for artifacts that ship with the
+- ``RELEASE_ASSETS``: directory for artifacts that ship with the
   release.
-- ``S3_ASSETS`` — directory for files uploaded to the release S3
+- ``S3_ASSETS``: directory for files uploaded to the release S3
   bucket.
-- ``GARASIGN_ENVFILE`` — environment file for the Garasign container.
+- ``GARASIGN_ENVFILE``: environment file for the Garasign container.
   Holds ``GARASIGN_USERNAME`` and ``GARASIGN_PASSWORD`` from the secret.
-- ``KONDUKTO_ENVFILE`` — environment file with ``KONDUKTO_TOKEN``.
+- ``KONDUKTO_ENVFILE``: environment file with ``KONDUKTO_TOKEN``.
   Written only if the secret contains the token.
-- ``AWS_BUCKET`` — release S3 bucket (``RELEASE_ASSETS_BUCKET`` key in
+- ``AWS_BUCKET``: release S3 bucket (``RELEASE_ASSETS_BUCKET`` key in
   the secret).
-- ``GPG_KEY_ID``, ``GPG_PUBLIC_URL``, ``SECURITY_REPORT_URL`` — passed
+- ``GPG_KEY_ID``, ``GPG_PUBLIC_URL``, ``SECURITY_REPORT_URL``: passed
   through from the secret when present.
 
 The credential values are checked before the env files are written: a

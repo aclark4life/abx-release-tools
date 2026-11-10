@@ -24,8 +24,8 @@ with no shell equivalent.
 
 Hidden project variables needed:
 
-- ``papertrail_key_id`` — Papertrail Key ID
-- ``papertrail_secret_key`` — Papertrail Secret Key
+- ``papertrail_key_id``: Papertrail Key ID
+- ``papertrail_secret_key``: Papertrail Secret Key
 
 The template's ``trace artifacts`` function reads the version from the
 git tag and calls the built-in ``papertrail.trace`` command for every

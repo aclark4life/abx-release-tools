@@ -2,7 +2,7 @@
 
 These encode the defect class that the extracted actions shipped with: an input interpolated into
 a ``run:`` body. ``${{ }}`` is substituted before bash parses the script, so an input containing a
-quote does not arrive as a string -- it arrives as syntax. Reviewing for it by eye is exactly the
+quote does not arrive as a string. It arrives as syntax. Reviewing for it by eye is exactly the
 sort of thing that passes review and then does not.
 """
 
@@ -103,7 +103,7 @@ def test_every_script_passes_shellcheck(action, tmp_path) -> None:
     """shellcheck at its default severity, which includes SC2086.
 
     pre-commit runs shellcheck over ``.sh`` files, of which this repository has one. Every other
-    line of shell it ships lives in a ``run:`` body, where that hook never looks -- which is where
+    line of shell it ships lives in a ``run:`` body, where that hook never looks, which is where
     every defect fixed on this branch was found. It also runs at ``--severity=warning``, and
     SC2086 is a note, so an unquoted expansion was invisible twice over. ``sbom`` passed both
     checks while interpolating a caller's ``sbom_in_path`` unquoted onto a command line.

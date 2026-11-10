@@ -28,14 +28,14 @@ file when the repo moves or renames.
 
 ## Layout
 
-- `actions/` — GitHub Actions composite actions, consumed with `uses:`.
-- `evergreen/` — shell scripts a project's Evergreen config calls, plus the
+- `actions/`: GitHub Actions composite actions, consumed with `uses:`.
+- `evergreen/`: shell scripts a project's Evergreen config calls, plus the
   thin function templates that call them. Clone this repo at run time and run
   the scripts from the clone, the way the drivers consume
   [drivers-evergreen-tools](https://github.com/mongodb-labs/drivers-evergreen-tools).
   The scripts are shared; the YAML is copied, because Evergreen built-ins such
   as `ec2.assume_role` and `papertrail.trace` have no shell equivalent.
-- `scripts/` — shell both CI systems run. `generate-sbom.sh` is called by the
+- `scripts/`: shell both CI systems run. `generate-sbom.sh` is called by the
   Evergreen `generate_sbom` function and by the `python/generate-sbom` action,
   so it sits here rather than under `evergreen/`. One copy, so a fix reaches
   both.
@@ -104,13 +104,13 @@ ships are ahead of upstream; the upstream fixes are tracked in
 The Evergreen scripts and templates follow public, working Evergreen release
 pipelines. Each file cites its source:
 
-- `evergreen/sign_artifacts.yml` — mongodb/mongo-rust-driver
+- `evergreen/sign_artifacts.yml`: mongodb/mongo-rust-driver
   (`.evergreen/releases.yml`, `.evergreen/release-sign.sh`).
-- `evergreen/silkbomb.yml` — mongodb/mongo-csharp-driver
+- `evergreen/silkbomb.yml`: mongodb/mongo-csharp-driver
   (`evergreen/evergreen.yml`, `evergreen/upload-sbom.sh`). `upload` only; the
   augmented SBOM that ships with a release comes from the GitHub Actions
   `sbom` action.
-- `evergreen/papertrail.yml` — mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
+- `evergreen/papertrail.yml`: mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
   and mongodb/mongo-rust-driver (`.evergreen/releases.yml`).
 
 The clone-and-call-the-scripts arrangement follows
@@ -140,14 +140,15 @@ back here so the next integration needs no copy of its own:
 - **`gpg-sign` word-split the file list.** `for filename in ${{ inputs.filenames }}`
   splits on whitespace, so `my package.tar.gz` became `my` and
   `package.tar.gz`, neither of which exists. Nothing was signed for it and the
-  step exited 0 -- a release that looks signed. The list now reaches the
+  step exited 0, leaving a release that looks signed. The list now reaches the
   container NUL-delimited over stdin.
 - **`gpg-sign` did not pin the key.** Without `--local-user "$GPG_KEY_ID"`, a
   Garasign account holding more than one key signs with whichever gpg picks,
   and the signature verifies against a key the release notes do not name.
 - **Credentials were written to a docker `--env-file` unchecked.** The format
   is line-oriented, so a newline in a password silently truncated it and the
-  run failed as a Garasign auth error -- a misleading place to look. Presence
+  run failed as a Garasign auth error, which is a misleading place to look.
+  Presence
   and newlines are now checked first, under `umask 077`.
 - **`setup.sh` reconstructed the secret-name prefix** to strip it, which cannot
   work for an ARN. The secret is now loaded under a blank alias, so keys arrive
@@ -160,8 +161,8 @@ which is a weaker claim; each is nonetheless reachable from an input a caller
 supplies:
 
 - **Inputs were interpolated into `run:` bodies** in `gpg-sign`,
-  `authorized-pub` and `upload-s3-assets` -- in `authorized-pub`, a GitHub
-  token among them. `${{ }}` is substituted before bash parses the script, so
+  `authorized-pub` and `upload-s3-assets`. In `authorized-pub`, a GitHub token
+  was among them. `${{ }}` is substituted before bash parses the script, so
   an input arrives as syntax rather than as a value. Inputs now arrive through
   `env:`. `git-sign` still interpolates its `command`, because running an
   arbitrary git command is what it is for; callers must not pass it untrusted
@@ -172,8 +173,8 @@ supplies:
 - **A file matched by two patterns was handled twice.** `dist/*.whl dist/*`
   signed, reported and uploaded the same artifact twice. In `gpg-sign` the
   second pass then looked for a signature the first pass had already moved, so
-  a correct release failed reporting that no signature was produced -- the
-  message that is supposed to mean the container produced nothing.
+  a correct release failed reporting that no signature was produced, which is
+  the message that is supposed to mean the container produced nothing.
 - **`sbom` and `git-sign` left expansions unquoted**, including
   `--sbom-in /repo/${SBOM_IN_PATH}`, which a caller supplies. A path containing
   a space asked silkbomb for two files; one containing a `*` asked it for
@@ -253,8 +254,8 @@ it from drivers-github-tools into this repo first, then use it from here.
 ## TODO before this leaves POC
 
 - [ ] Move the repo to mongodb-labs, for ownership rather than for access.
-      The stated reason -- that a private personal repo cannot serve composite
-      actions to org repositories -- does not apply: this repo is public, and a
+      The stated reason, that a private personal repo cannot serve composite
+      actions to org repositories, does not apply: this repo is public, and a
       public repo is usable by any workflow. What a personal repo cannot give
       is an owner who is not one person. Update the README owner placeholders
       when the move lands.
