@@ -22,38 +22,58 @@ needs, plus the setup action that precedes them:
 Which CI system can run which step
 ----------------------------------
 
+A cell holding ``X`` means the step is the same work either way. A cell
+naming a command or a mechanism means the two systems do different
+things, so the row is not a choice between two implementations of one
+job.
+
 .. list-table::
    :header-rows: 1
-   :widths: 34 16 16 34
+   :widths: 20 24 24 32
 
    * - Step
      - Evergreen
      - GitHub Actions
      - Notes
    * - Dependency scanning
-     - X
-     - X
-     - Evergreen uploads the SBOM to Kondukto. The augmented SBOM that
-       ships with a release comes from GitHub Actions.
+     - ``silkbomb upload``
+     - ``silkbomb update``, then ``augment``
+     - Two halves of scanning, not one job twice. Evergreen pushes the
+       dependency list to Kondukto and produces no release artifact.
+       GitHub Actions produces ``cyclonedx.sbom.json``, the SBOM that
+       ships with the release. Only the second needs
+       ``KONDUKTO_TOKEN``; ``upload`` is satisfied by the silkbomb IAM
+       role. Each template does one half because that is how it was
+       written, not because the other system cannot.
    * - Artifact signing
      - X
      - X
-     - Same Garasign container, same GPG key, either way.
+     - Same Garasign container, same GPG key, same output.
    * - Artifact tracing
-     - X
-     - X
-     - Different mechanisms: ``papertrail.trace`` on Evergreen, the
-       authorized-publication report on GitHub Actions.
+     - ``papertrail.trace``
+     - authorized-publication report
+     - Both satisfy the requirement. Neither produces what the other
+       does: Evergreen records one trace per downloadable file in
+       Papertrail, GitHub Actions writes a report to the release S3
+       bucket.
    * - Publishing to PyPI
      -
      - X
-     - Trusted publishing needs a GitHub OIDC token, which only a
-       GitHub Actions job can present.
+     - Trusted publishing works by PyPI checking a GitHub OIDC token,
+       and Evergreen cannot present one. The only way to publish from
+       Evergreen is a stored PyPI API token, which is what trusted
+       publishing exists to remove.
 
-A mixed pipeline is normal. A repo that runs its release on Evergreen
-still publishes from GitHub Actions, because the last row leaves it no
-choice. Releasing on Evergreen means running the other three steps
-there, not all four.
+So this is not a choice between two platforms. The last row fixes the
+publish step on GitHub Actions for every ABX repo, whatever runs the
+steps before it. The question is only where the other three run, and
+the answer is wherever that repo's CI already lives. Every ABX repo
+today is on GitHub Actions, so ``evergreen/`` is there for a repo that
+is not.
+
+The input SBOM is the one piece of the pipeline that is shared
+outright: both systems build it with the same script. See
+:doc:`scanning`.
 
 Provenance and the verification trail live in the repo README. Pin
 every action to a commit SHA in real workflows.
