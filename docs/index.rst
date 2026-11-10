@@ -22,7 +22,7 @@ needs, plus the setup action that precedes them:
 Which CI system can run which step
 ----------------------------------
 
-A cell holding ``X`` means the step is the same work either way. A cell
+A cell holding ``✅`` means the step is the same work either way. A cell
 naming a command or a mechanism means the two systems do different
 things, not two implementations of the same thing.
 
@@ -45,8 +45,8 @@ things, not two implementations of the same thing.
        role. Each template does one half because that is how it was
        written, not because the other system cannot.
    * - Artifact signing
-     - X
-     - X
+     - ✅
+     - ✅
      - Same Garasign container, same GPG key, same output.
    * - Artifact tracing
      - ``papertrail.trace``
@@ -57,7 +57,7 @@ things, not two implementations of the same thing.
        bucket.
    * - Publishing to PyPI
      -
-     - X
+     - ✅
      - Trusted publishing works by PyPI checking a GitHub OIDC token,
        and Evergreen cannot present one. The only way to publish from
        Evergreen is a stored PyPI API token, which is what trusted
