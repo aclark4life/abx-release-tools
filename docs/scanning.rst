@@ -12,6 +12,24 @@ needs:
   The repo needs ``setup`` anyway for signing and S3 upload; the
   Kondukto token then lives in the AWS secret.
 
+GitHub Actions: run SilkBomb inline (scan-only)
+-----------------------------------------------
+
+For a repo with no AWS release infrastructure, run the container
+directly. Grant the workflow ``id-token: write`` and configure an AWS
+OIDC role with read access to the DevProd Platforms ECR (secret
+``DEVPROD_PLATFORMS_ECR_ROLE_ARN``). Store the Kondukto CI API token
+as ``KONDUKTO_TOKEN`` in a GitHub Actions secret.
+
+.. code-block:: shell
+
+   ECR_HOST=901841024863.dkr.ecr.us-east-1.amazonaws.com
+   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$ECR_HOST"
+   docker run --rm -e KONDUKTO_TOKEN -v "$PWD":/pwd \
+     "$ECR_HOST/release-infrastructure/silkbomb:2.0" \
+     upload --sbom-in /pwd/sbom.json \
+     --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME"
+
 GitHub Actions: ``sbom``
 ------------------------
 
