@@ -22,7 +22,7 @@ OIDC token is not issued and the publish step fails:
          with:
            name: dist
            path: dist/
-       - uses: <owner>/abx-release-tools/actions/python/publish@<sha>
+       - uses: mongodb-labs/abx-release-tools/actions/python/publish@<sha>
 
 Inputs
 ------

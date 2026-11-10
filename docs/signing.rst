@@ -17,7 +17,7 @@ Usage
 
 .. code-block:: yaml
 
-   - uses: <owner>/abx-release-tools/actions/gpg-sign@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/gpg-sign@<sha>
      with:
        filenames: dist/*
 
@@ -51,7 +51,7 @@ Usage
 
 .. code-block:: yaml
 
-   - uses: <owner>/abx-release-tools/actions/git-sign@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/git-sign@<sha>
      with:
        command: git tag -s -m "Release 1.0.0" v1.0.0
 

@@ -43,14 +43,14 @@ file when the repo moves or renames.
 ## Usage
 
 ```
-uses: <owner>/abx-release-tools/actions/setup@main
-uses: <owner>/abx-release-tools/actions/sbom@main
-uses: <owner>/abx-release-tools/actions/gpg-sign@main
-uses: <owner>/abx-release-tools/actions/git-sign@main
-uses: <owner>/abx-release-tools/actions/authorized-pub@main
-uses: <owner>/abx-release-tools/actions/upload-s3-assets@main
-uses: <owner>/abx-release-tools/actions/python/generate-sbom@main
-uses: <owner>/abx-release-tools/actions/python/publish@main
+uses: mongodb-labs/abx-release-tools/actions/setup@main
+uses: mongodb-labs/abx-release-tools/actions/sbom@main
+uses: mongodb-labs/abx-release-tools/actions/gpg-sign@main
+uses: mongodb-labs/abx-release-tools/actions/git-sign@main
+uses: mongodb-labs/abx-release-tools/actions/authorized-pub@main
+uses: mongodb-labs/abx-release-tools/actions/upload-s3-assets@main
+uses: mongodb-labs/abx-release-tools/actions/python/generate-sbom@main
+uses: mongodb-labs/abx-release-tools/actions/python/publish@main
 ```
 
 Pin to a commit SHA in real workflows.

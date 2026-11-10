@@ -42,7 +42,7 @@ Usage
 
 .. code-block:: yaml
 
-   - uses: <owner>/abx-release-tools/actions/sbom@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/sbom@<sha>
      with:
        kondukto_sub_project: main
 
@@ -82,8 +82,8 @@ needs no ``setup``: nothing here touches AWS.
 
 .. code-block:: yaml
 
-   - uses: <owner>/abx-release-tools/actions/python/generate-sbom@<sha>
-   - uses: <owner>/abx-release-tools/actions/sbom@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/python/generate-sbom@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/sbom@<sha>
 
 Name the project type. ``cyclonedx-py`` reads one type per subcommand,
 and the default, ``requirements``, reads ``requirements.txt`` from the

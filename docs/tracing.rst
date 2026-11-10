@@ -72,13 +72,13 @@ space- or newline-separated, each a glob, unmatched patterns error.
 
 .. code-block:: yaml
 
-   - uses: <owner>/abx-release-tools/actions/authorized-pub@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/authorized-pub@<sha>
      with:
        product_name: strands-mongodb
        release_version: ${{ env.VERSION }}
        filenames: dist/*
 
-   - uses: <owner>/abx-release-tools/actions/upload-s3-assets@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/upload-s3-assets@<sha>
      with:
        product_name: strands-mongodb
        version: ${{ env.VERSION }}

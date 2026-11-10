@@ -10,7 +10,7 @@ Usage
 
 .. code-block:: yaml
 
-   - uses: <owner>/abx-release-tools/actions/setup@<sha>
+   - uses: mongodb-labs/abx-release-tools/actions/setup@<sha>
      with:
        aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
        aws_region_name: ${{ vars.AWS_REGION_NAME }}
@@ -99,7 +99,7 @@ config, and call it before any other function in ``evergreen/``:
            script: |
              set -euo pipefail
              rm -rf abx-release-tools
-             git clone https://github.com/<owner>/abx-release-tools.git
+             git clone https://github.com/mongodb-labs/abx-release-tools.git
              git -C abx-release-tools checkout "${abx_release_tools_ref}"
 
 Set ``abx_release_tools_ref`` to a commit SHA, the same pin the actions
