@@ -63,7 +63,7 @@ things, not two implementations of the same thing.
        Evergreen is a stored PyPI API token, which is what trusted
        publishing exists to remove.
 
-So this is not a choice between two platforms. Every ABX repo
+Every ABX repo
 publishes from GitHub Actions, because no other system can. A repo
 that also has an Evergreen project can run the three earlier steps
 there, which is what ``evergreen/`` is for. One repo using both
