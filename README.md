@@ -5,7 +5,7 @@ Shared release tooling for ABX (AI Builder Experience) integrations:
 `mongodb-developer/claude-agent-sdk-mongodb-session-store`, and new
 integrations that join that list.
 
-POC. Covers the four steps of the ABX release how-to guides; the
+POC. Covers the four steps of an ABX release; the
 [documentation](docs/index.rst) has the details:
 
 - [Dependency scanning with SilkBomb](docs/scanning.rst)
@@ -28,9 +28,17 @@ file when the repo moves or renames.
 
 ## Layout
 
-- `actions/` — GitHub Actions composite actions, consumed with `uses:`.
-- `evergreen/` — Evergreen function and task templates. Evergreen cannot
-  include YAML from another repo. Copy them into the project config.
+- `actions/`: GitHub Actions composite actions, consumed with `uses:`.
+- `evergreen/`: shell scripts a project's Evergreen config calls, plus the
+  thin function templates that call them. Clone this repo at run time and run
+  the scripts from the clone, the way the drivers consume
+  [drivers-evergreen-tools](https://github.com/mongodb-labs/drivers-evergreen-tools).
+  The scripts are shared; the YAML is copied, because Evergreen built-ins such
+  as `ec2.assume_role` and `papertrail.trace` have no shell equivalent.
+- `scripts/`: shell both CI systems run. `generate-sbom.sh` is called by the
+  Evergreen `generate_sbom` function and by the `python/generate-sbom` action,
+  so it sits here rather than under `evergreen/`. One copy, so a fix reaches
+  both.
 
 ## Usage
 
@@ -41,6 +49,7 @@ uses: <owner>/abx-release-tools/actions/gpg-sign@main
 uses: <owner>/abx-release-tools/actions/git-sign@main
 uses: <owner>/abx-release-tools/actions/authorized-pub@main
 uses: <owner>/abx-release-tools/actions/upload-s3-assets@main
+uses: <owner>/abx-release-tools/actions/python/generate-sbom@main
 uses: <owner>/abx-release-tools/actions/python/publish@main
 ```
 
@@ -55,22 +64,15 @@ actions expect the environment set up by the `setup` action (`RELEASE_ASSETS`,
 `S3_ASSETS`, `GARASIGN_ENVFILE`, `KONDUKTO_ENVFILE`, `AWS_BUCKET`). Run
 `setup` first.
 
-Guide 3's GitHub Actions tracing alternative uses `authorized-pub` to write
-`authorized-publication.txt`, then `upload-s3-assets` to put it in the release
-S3 bucket. Run the two actions in that order: there is no `python/post-publish`
-release chain here (see Out of scope). Agree the bucket with DevProd Release
-Infrastructure.
+`python/generate-sbom` needs no `setup`: nothing in it touches AWS. It writes
+the `sbom.json` that `sbom` then reads, so run it before `sbom`. Name the
+project type if the repo keeps its dependencies anywhere but
+`requirements.txt`; see [the scanning docs](docs/scanning.rst).
 
-## Per-repo onboarding
-
-Four steps sit outside this repo, done once per repo. The ABX release how-to
-guides have the details:
-<https://docs.google.com/document/d/1rhYkWgbasperhG_9m5enMLamVkM0Nm5E7XuZ9lixxLI/edit>.
-
-1. File the Kondukto RNDSEC onboarding ticket.
-2. Request the Kondukto CI API token and store it as a CI secret.
-3. Agree the Papertrail product name with DevProd Release Infrastructure.
-4. Register the PyPI pending publisher for each new package.
+To trace a release from GitHub Actions, `authorized-pub` writes
+`authorized-publication.txt` and `upload-s3-assets` puts it in the release S3
+bucket. Run the two actions in that order: there is no `python/post-publish`
+release chain here (see Out of scope).
 
 ## Provenance
 
@@ -78,6 +80,11 @@ The GitHub Actions were extracted from
 [mongodb-labs/drivers-github-tools](https://github.com/mongodb-labs/drivers-github-tools)
 at commit `99b1cbd729bc83bf7fc74e1b2a97fffad3d65d7b`, then hardened. Each file
 carries a provenance comment listing what diverges and why.
+
+One action is not extracted: `python/generate-sbom`. Upstream has no such
+action, because upstream leaves making the input SBOM to the caller. The
+Evergreen path here wraps that step, so the two CI systems disagreed on who
+owns it. Its file says so.
 
 Action names and outputs are unchanged. Two behaviours changed deliberately,
 both recorded under "Input contract" below. Nothing changed silently: the rule
@@ -94,17 +101,30 @@ pre-publish's `tag-version`. The hardening above means the bytes this repo
 ships are ahead of upstream; the upstream fixes are tracked in
 [PYTHON-6234](https://jira.mongodb.org/browse/PYTHON-6234).
 
-The Evergreen templates follow public, working Evergreen release pipelines.
-Each file cites its source:
+The Evergreen scripts and templates follow public, working Evergreen release
+pipelines. Each file cites its source:
 
-- `evergreen/sign_artifacts.yml` — mongodb/mongo-rust-driver
+- `evergreen/sign_artifacts.yml`: mongodb/mongo-rust-driver
   (`.evergreen/releases.yml`, `.evergreen/release-sign.sh`).
-- `evergreen/silkbomb.yml` — mongodb/mongo-csharp-driver
+- `evergreen/silkbomb.yml`: mongodb/mongo-csharp-driver
   (`evergreen/evergreen.yml`, `evergreen/upload-sbom.sh`). `upload` only; the
   augmented SBOM that ships with a release comes from the GitHub Actions
   `sbom` action.
-- `evergreen/papertrail.yml` — mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
+- `evergreen/papertrail.yml`: mongodb/mongo-java-driver (`.evergreen/.evg.yml`)
   and mongodb/mongo-rust-driver (`.evergreen/releases.yml`).
+
+The clone-and-call-the-scripts arrangement follows
+[drivers-evergreen-tools](https://github.com/mongodb-labs/drivers-evergreen-tools),
+which pymongo and the Rust driver consume that way: `include:` entries in both
+projects are same-repo paths, neither declares an Evergreen module, and the
+shared repo arrives as a clone at `$DRIVERS_TOOLS` whose scripts the config
+calls.
+
+The scripts carry the same fixes as the actions: the credential env file is
+truncated not appended, written under `umask 077`, and rejected if a value
+holds a newline; `gpg` is pinned with `--local-user`; file names reach the
+container as positional arguments rather than as script text; and every
+expansion that reaches a command line is quoted.
 
 ## Hardening
 
@@ -120,14 +140,15 @@ back here so the next integration needs no copy of its own:
 - **`gpg-sign` word-split the file list.** `for filename in ${{ inputs.filenames }}`
   splits on whitespace, so `my package.tar.gz` became `my` and
   `package.tar.gz`, neither of which exists. Nothing was signed for it and the
-  step exited 0 -- a release that looks signed. The list now reaches the
+  step exited 0, leaving a release that looks signed. The list now reaches the
   container NUL-delimited over stdin.
 - **`gpg-sign` did not pin the key.** Without `--local-user "$GPG_KEY_ID"`, a
   Garasign account holding more than one key signs with whichever gpg picks,
   and the signature verifies against a key the release notes do not name.
 - **Credentials were written to a docker `--env-file` unchecked.** The format
   is line-oriented, so a newline in a password silently truncated it and the
-  run failed as a Garasign auth error -- a misleading place to look. Presence
+  run failed as a Garasign auth error, which is a misleading place to look.
+  Presence
   and newlines are now checked first, under `umask 077`.
 - **`setup.sh` reconstructed the secret-name prefix** to strip it, which cannot
   work for an ARN. The secret is now loaded under a blank alias, so keys arrive
@@ -140,8 +161,8 @@ which is a weaker claim; each is nonetheless reachable from an input a caller
 supplies:
 
 - **Inputs were interpolated into `run:` bodies** in `gpg-sign`,
-  `authorized-pub` and `upload-s3-assets` -- in `authorized-pub`, a GitHub
-  token among them. `${{ }}` is substituted before bash parses the script, so
+  `authorized-pub` and `upload-s3-assets`. In `authorized-pub`, a GitHub token
+  was among them. `${{ }}` is substituted before bash parses the script, so
   an input arrives as syntax rather than as a value. Inputs now arrive through
   `env:`. `git-sign` still interpolates its `command`, because running an
   arbitrary git command is what it is for; callers must not pass it untrusted
@@ -152,8 +173,8 @@ supplies:
 - **A file matched by two patterns was handled twice.** `dist/*.whl dist/*`
   signed, reported and uploaded the same artifact twice. In `gpg-sign` the
   second pass then looked for a signature the first pass had already moved, so
-  a correct release failed reporting that no signature was produced -- the
-  message that is supposed to mean the container produced nothing.
+  a correct release failed reporting that no signature was produced, which is
+  the message that is supposed to mean the container produced nothing.
 - **`sbom` and `git-sign` left expansions unquoted**, including
   `--sbom-in /repo/${SBOM_IN_PATH}`, which a caller supplies. A path containing
   a space asked silkbomb for two files; one containing a `*` asked it for
@@ -195,7 +216,7 @@ runs it, and `pre-commit --hook-stage manual`, on every push and pull request.
 
 Nearly all of the logic here lives in the `run:` bodies of composite actions,
 which neither existing check opened: the pre-commit shellcheck hook matches
-`.sh` files, of which this repository has one. So the suite parses each
+`.sh` files, and a `run:` body is not one. So the suite parses each
 `action.yml` and tests those bodies directly.
 
 The static tests assert that no `${{ }}` survives into a `run:` body, that
@@ -233,8 +254,8 @@ it from drivers-github-tools into this repo first, then use it from here.
 ## TODO before this leaves POC
 
 - [ ] Move the repo to mongodb-labs, for ownership rather than for access.
-      The stated reason -- that a private personal repo cannot serve composite
-      actions to org repositories -- does not apply: this repo is public, and a
+      The stated reason, that a private personal repo cannot serve composite
+      actions to org repositories, does not apply: this repo is public, and a
       public repo is usable by any workflow. What a personal repo cannot give
       is an owner who is not one person. Update the README owner placeholders
       when the move lands.

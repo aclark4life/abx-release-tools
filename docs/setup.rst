@@ -51,17 +51,17 @@ What it writes
 
 The action logs in to ECR, reads the AWS secret, and exports:
 
-- ``RELEASE_ASSETS`` — directory for artifacts that ship with the
+- ``RELEASE_ASSETS``: directory for artifacts that ship with the
   release.
-- ``S3_ASSETS`` — directory for files uploaded to the release S3
+- ``S3_ASSETS``: directory for files uploaded to the release S3
   bucket.
-- ``GARASIGN_ENVFILE`` — environment file for the Garasign container.
+- ``GARASIGN_ENVFILE``: environment file for the Garasign container.
   Holds ``GARASIGN_USERNAME`` and ``GARASIGN_PASSWORD`` from the secret.
-- ``KONDUKTO_ENVFILE`` — environment file with ``KONDUKTO_TOKEN``.
+- ``KONDUKTO_ENVFILE``: environment file with ``KONDUKTO_TOKEN``.
   Written only if the secret contains the token.
-- ``AWS_BUCKET`` — release S3 bucket (``RELEASE_ASSETS_BUCKET`` key in
+- ``AWS_BUCKET``: release S3 bucket (``RELEASE_ASSETS_BUCKET`` key in
   the secret).
-- ``GPG_KEY_ID``, ``GPG_PUBLIC_URL``, ``SECURITY_REPORT_URL`` — passed
+- ``GPG_KEY_ID``, ``GPG_PUBLIC_URL``, ``SECURITY_REPORT_URL``: passed
   through from the secret when present.
 
 The credential values are checked before the env files are written: a
@@ -73,15 +73,45 @@ line-oriented). The files are written under ``RUNNER_TEMP`` with
 It also sets the git identity to ``mongodb-dbx-release-bot[bot]`` for
 release commits and tags.
 
-Per-repo onboarding
--------------------
+.. _evergreen-fetch:
 
-Four steps sit outside this repo. Do them once per repo:
+Evergreen: fetch the tools
+--------------------------
 
-1. File the Kondukto RNDSEC onboarding ticket.
-2. Request the Kondukto CI API token and store it as a CI secret.
-3. Agree the Papertrail product name with DevProd Release
-   Infrastructure.
-4. Register the PyPI pending publisher for each new package.
+Evergreen has no cross-repo ``uses:``. It can include YAML from a repo
+attached as a module, but no MongoDB driver does that, so this repo
+follows the pattern the drivers do run: clone the tools at run time and
+call their scripts. That is how
+`drivers-evergreen-tools
+<https://github.com/mongodb-labs/drivers-evergreen-tools>`_ is
+consumed; pymongo clones it and calls
+``${DRIVERS_TOOLS}/.evergreen/teardown.sh`` and the rest.
 
-The ABX release how-to guides have the details.
+Copy this function from ``evergreen/fetch.yml`` into the project
+config, and call it before any other function in ``evergreen/``:
+
+.. code-block:: yaml
+
+   functions:
+     "fetch abx-release-tools":
+       - command: shell.exec
+         params:
+           script: |
+             set -euo pipefail
+             rm -rf abx-release-tools
+             git clone https://github.com/<owner>/abx-release-tools.git
+             git -C abx-release-tools checkout "${abx_release_tools_ref}"
+
+Set ``abx_release_tools_ref`` to a commit SHA, the same pin the actions
+take. A branch name is not a pin.
+
+The shell is shared this way, so a fix here reaches every project on
+its next run. The YAML is still copied, because Evergreen built-ins
+such as ``ec2.assume_role``, ``expansions.update`` and
+``papertrail.trace`` have no shell equivalent.
+
+Most of that shell is under ``evergreen/``. One script,
+``scripts/generate-sbom.sh``, sits outside it, because the
+``python/generate-sbom`` action runs the same file. The clone still
+reaches it: the function calls
+``abx-release-tools/scripts/generate-sbom.sh``.

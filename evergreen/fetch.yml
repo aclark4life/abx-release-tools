@@ -1,0 +1,34 @@
+# Fetch abx-release-tools into the Evergreen workspace.
+#
+# This is the one function that cannot live in a script here: nothing is
+# cloned yet when it runs. Copy it into the project config, and call it before
+# any other function in this directory.
+#
+# This is how the drivers consume mongodb-labs/drivers-evergreen-tools: the
+# repo is cloned at run time and its scripts are called. The scripts are
+# shared, the project config is not.
+#
+# Project variable:
+#   abx_release_tools_ref  Commit SHA to check out. Pin it. A branch name
+#                          works and is not pinned to anything.
+
+functions:
+  "fetch abx-release-tools":
+    - command: shell.exec
+      params:
+        script: |
+          set -euo pipefail
+          rm -rf abx-release-tools
+          git clone https://github.com/<TODO owner>/abx-release-tools.git
+          git -C abx-release-tools checkout "${abx_release_tools_ref}"
+
+# Call it first in the task:
+#
+# tasks:
+#   - name: release
+#     commands:
+#       - func: "fetch abx-release-tools"
+#       - func: sign_artifact
+#         vars:
+#           unsigned_artifact: dist/abx-1.0.0-py3-none-any.whl
+#           detached_signature: dist/abx-1.0.0-py3-none-any.whl.sig

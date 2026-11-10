@@ -2,7 +2,7 @@
 
 Upstream iterated the file list as ``for filename in ${{ inputs.filenames }}``. That splits on
 whitespace, so ``my package.tar.gz`` became ``my`` and ``package.tar.gz``, neither of which
-exists. Nothing was signed for it, and the step exited 0 -- a release that looks signed.
+exists. Nothing was signed for it, and the step exited 0, leaving a release that looks signed.
 
 Fixing it took three attempts. The first still split each line on spaces. The second globbed with
 an unquoted ``$pattern``, which word-splits before it expands. Both passed review by eye. Neither

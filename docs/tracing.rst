@@ -15,13 +15,17 @@ release workflow.
 Evergreen: ``evergreen/papertrail.yml``
 ---------------------------------------
 
-Evergreen cannot include YAML from another repo. Copy the file into
-the project config.
+The version derivation lives in ``evergreen/release-version.sh``. A
+project clones this repo at run time and calls it; see
+:ref:`evergreen-fetch`. The function template in
+``evergreen/papertrail.yml`` is copied into the project config, because
+``papertrail.trace`` and ``expansions.update`` are Evergreen built-ins
+with no shell equivalent.
 
 Hidden project variables needed:
 
-- ``papertrail_key_id`` — Papertrail Key ID
-- ``papertrail_secret_key`` — Papertrail Secret Key
+- ``papertrail_key_id``: Papertrail Key ID
+- ``papertrail_secret_key``: Papertrail Secret Key
 
 The template's ``trace artifacts`` function reads the version from the
 git tag and calls the built-in ``papertrail.trace`` command for every
@@ -32,6 +36,7 @@ customer-downloadable file. Pass the product name as a function var:
    tasks:
      - name: release
        commands:
+         - func: "fetch abx-release-tools"
          - func: publish
          - func: trace artifacts
            vars:
@@ -39,6 +44,9 @@ customer-downloadable file. Pass the product name as a function var:
 
 Use a dev product name, for example ``strands-mongodb-dev``, on
 non-release builds.
+
+``release-version.sh`` strips a leading ``v`` from the git tag. Set
+``TAG_PREFIX`` empty for a project that tags without one.
 
 Rules:
 
@@ -119,5 +127,5 @@ space- or newline-separated, each a glob, unmatched patterns error.
 The report lists Product, Version, Releaser, Build Source, Build
 Number, and one Filename and Shasum pair per dist file. This is the
 same report pymongo's release uploads to its release S3 bucket.
-Request the release S3 bucket from DevProd Release Infrastructure
-during onboarding.
+``setup`` reads the bucket name from the AWS secret and exports it as
+``AWS_BUCKET``; see :doc:`setup`.

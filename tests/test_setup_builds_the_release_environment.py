@@ -85,7 +85,7 @@ def test_a_newline_in_a_credential_is_refused(
     tmp_path: Path, runner, credential: str
 ) -> None:
     """A docker --env-file is line-oriented. A newline truncates the value silently, and the run
-    then fails as a Garasign auth error -- which sends the next person looking in the wrong place.
+    then fails as a Garasign auth error, which sends the next person looking in the wrong place.
     """
     result = setup(tmp_path, runner, **{credential: "first\nsecond"})
 

@@ -1,17 +1,22 @@
-# Garasign artifact signing function for Evergreen (TEMPLATE).
+# Garasign artifact signing for Evergreen.
+#
+# The shell lives in this repo, in evergreen/ecr-login.sh and
+# evergreen/sign-artifact.sh. What stays below is the part that cannot: the
+# ec2.assume_role built-in, and the environment that carries the credentials
+# into the scripts. Copy this function into the project config, and call
+# "fetch abx-release-tools" (evergreen/fetch.yml) first.
 #
 # Pattern from mongodb/mongo-rust-driver (.evergreen/releases.yml "sign
 # release" and .evergreen/release-sign.sh), a public, working Evergreen
-# signing pipeline. Evergreen cannot include YAML from another repo: copy
-# this function into the project config.
+# signing pipeline.
 #
 # Hidden project variables needed (Evergreen project settings):
 #   GARASIGN_USERNAME  Garasign username (ai-builder-experience)
 #   GARASIGN_PASSWORD  Garasign password
+#   GPG_KEY_ID         Key to sign with
 #
 # Credentials ride the environment, never the script text: Evergreen prints
-# script text in task logs. The shell variables below ($GARASIGN_USERNAME,
-# not ${GARASIGN_USERNAME}) stay unsubstituted in the log for the same reason.
+# script text in task logs.
 
 functions:
   sign_artifact:
@@ -21,22 +26,19 @@ functions:
     - command: shell.exec
       params:
         env:
+          AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+          AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
+        script: bash abx-release-tools/evergreen/ecr-login.sh
+    - command: shell.exec
+      params:
+        env:
           GARASIGN_USERNAME: ${GARASIGN_USERNAME}
           GARASIGN_PASSWORD: ${GARASIGN_PASSWORD}
+          GPG_KEY_ID: ${GPG_KEY_ID}
           UNSIGNED_ARTIFACT: ${unsigned_artifact}
           DETACHED_SIGNATURE: ${detached_signature}
-        script: |
-          set -eu
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 901841024863.dkr.ecr.us-east-1.amazonaws.com
-          echo "GRS_CONFIG_USER1_USERNAME=$GARASIGN_USERNAME" >> signing-envfile
-          echo "GRS_CONFIG_USER1_PASSWORD=$GARASIGN_PASSWORD" >> signing-envfile
-          docker run \
-            --env-file=signing-envfile \
-            --rm \
-            -v $(pwd):$(pwd) \
-            -w $(pwd) \
-            901841024863.dkr.ecr.us-east-1.amazonaws.com/release-infrastructure/garasign-gpg \
-            /bin/bash -c "gpgloader && gpg --yes -v --armor -o $DETACHED_SIGNATURE --detach-sign $UNSIGNED_ARTIFACT"
+        script: bash abx-release-tools/evergreen/sign-artifact.sh
 
 # Task usage example. Function vars carry the file names; the hidden project
 # variables carry the credentials.
@@ -44,10 +46,11 @@ functions:
 # tasks:
 #   - name: sign_artifacts
 #     commands:
+#       - func: "fetch abx-release-tools"
 #       - func: build  # produces dist/
 #       - func: sign_artifact
 #         vars:
 #           unsigned_artifact: dist/abx-1.0.0-py3-none-any.whl
 #           detached_signature: dist/abx-1.0.0-py3-none-any.whl.sig
 #
-# If the host uses Podman, replace docker with podman.
+# On a Podman host, set CONTAINER_CMD: podman in both env blocks.

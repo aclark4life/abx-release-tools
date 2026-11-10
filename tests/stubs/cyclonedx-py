@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Stand-in for cyclonedx-py. Records its argv one per line, so a test can check which subcommand
+# and which positional argument reached the tool, and writes a minimal CycloneDX document to the
+# path given after -o.
+#
+# STUB_CYCLONEDX_EMPTY makes it write a zero-byte file and exit 0, which is what the real tool
+# leaves behind when it creates the output and then fails to read the project.
+set -euo pipefail
+printf '%s\n' "$@" > "${STUB_CYCLONEDX_ARGV:-/dev/null}"
+
+out=""
+previous=""
+for argument in "$@"; do
+  if [ "$previous" = "-o" ]; then
+    out="$argument"
+  fi
+  previous="$argument"
+done
+
+if [ -n "$out" ]; then
+  if [ -n "${STUB_CYCLONEDX_EMPTY:-}" ]; then
+    : > "$out"
+  else
+    printf '{"bomFormat": "CycloneDX", "components": []}\n' > "$out"
+  fi
+fi
