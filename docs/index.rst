@@ -1,11 +1,7 @@
 abx-release-tools
 =================
 
-Shared release tooling for ABX (AI Builder Experience) integrations:
-``mongodb/strands-mongodb``,
-``mongodb-developer/ms-agent-framework-mongodb``,
-``mongodb-developer/claude-agent-sdk-mongodb-session-store``, and new
-integrations that join that list.
+Shared release tooling for ABX (AI Builder Experience) integrations.
 
 The tooling covers the four secure-release steps every ABX release
 needs, plus the setup action that precedes them:

@@ -51,18 +51,15 @@ deliberately ships one signature.
 Pending publisher
 -----------------
 
-A publisher can only attach to a PyPI project that already exists. A
-new package does not exist yet, so register a pending publisher by
-hand on pypi.org before the first release: account settings, then
-Publishing, then Add a new pending publisher. Without it, the release
-run fails at the publish step, after a green build.
-
-The Workflow field names the workflow file that contains the publish
-job, not the workflow that dispatches it. Leave the Environment field
-empty unless the publish job declares an ``environment:``.
+A publisher can only attach to a PyPI project that already exists.
+Register a pending publisher by hand on pypi.org before the first
+release; without it, the release fails at the publish step. The form
+fields and their gotchas are in the ABX release how-to guides:
+https://docs.google.com/document/d/1rhYkWgbasperhG_9m5enMLamVkM0Nm5E7XuZ9lixxLI/edit
 
 Sign the release tag
 --------------------
 
 The DBX policy requires signed release tags. Sign them with the
-``git-sign`` action; see :doc:`signing`.
+``git-sign`` action; see :doc:`signing`. The tag ruleset is in the ABX
+release how-to guides.
