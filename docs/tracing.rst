@@ -1,7 +1,8 @@
 Artifact tracing
 ================
 
-Two paths. Choose by where the release runs:
+Two paths. Choose by where this step runs, which need not be where the
+publish step runs:
 
 - Evergreen: the built-in ``papertrail.trace`` command, one trace per
   customer-downloadable file.

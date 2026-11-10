@@ -24,8 +24,7 @@ Which CI system can run which step
 
 A cell holding ``X`` means the step is the same work either way. A cell
 naming a command or a mechanism means the two systems do different
-things, so the row is not a choice between two implementations of one
-job.
+things, not two implementations of the same thing.
 
 .. list-table::
    :header-rows: 1
@@ -64,12 +63,11 @@ job.
        Evergreen is a stored PyPI API token, which is what trusted
        publishing exists to remove.
 
-So this is not a choice between two platforms. The last row fixes the
-publish step on GitHub Actions for every ABX repo, whatever runs the
-steps before it. The question is only where the other three run, and
-the answer is wherever that repo's CI already lives. Every ABX repo
-today is on GitHub Actions, so ``evergreen/`` is there for a repo that
-is not.
+So this is not a choice between two platforms. Every ABX repo
+publishes from GitHub Actions, because no other system can. A repo
+that also has an Evergreen project can run the three earlier steps
+there, which is what ``evergreen/`` is for. One repo using both
+systems is the normal case, not a transition state.
 
 The input SBOM is the one piece of the pipeline that is shared
 outright: both systems build it with the same script. See
